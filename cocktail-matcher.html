@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Cocktail Matcher</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --coral:#FF6B4A;--coral-dk:#C4503A;--coral-lt:#FF8E72;
+  --cream:#FFF8F0;--bg:#FEF6EE;--bg2:#FFF0E4;--card:#FFFFFF;
+  --text:#2D1B0E;--text2:#6B4030;--text3:#9B7060;
+  --border:#F0D8C8;
+  --shadow:0 2px 12px rgba(180,80,40,.10);
+  --shadow-lg:0 8px 32px rgba(180,80,40,.18);
+  --r:16px;--r-sm:10px;
+  --grad:linear-gradient(135deg,#FF8E72 0%,#FF6B4A 50%,#C4503A 100%);
+  --t:.25s cubic-bezier(.4,0,.2,1);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* HEADER */
+.header{background:var(--grad);padding:2rem 1.5rem 1.5rem;text-align:center;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,.15) 0%,transparent 60%);pointer-events:none}
+.header h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;color:#fff;letter-spacing:-.02em;text-shadow:0 2px 8px rgba(0,0,0,.15)}
+.header p{color:rgba(255,255,255,.85);margin-top:.4rem;font-size:1rem}
+
+/* LAYOUT */
+.container{max-width:1200px;margin:0 auto;padding:1.5rem 1rem}
+.layout{display:grid;grid-template-columns:360px 1fr;gap:1.5rem;align-items:start}
+@media(max-width:800px){.layout{grid-template-columns:1fr}}
+
+/* PANEL */
+.panel{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:1.5rem;border:1px solid var(--border)}
+.panel-title{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1.2rem}
+
+/* SLIDERS */
+.sliders-grid{display:flex;flex-direction:column;gap:1rem}
+.slider-row{display:flex;flex-direction:column;gap:.35rem}
+.slider-header{display:flex;justify-content:space-between;align-items:center}
+.slider-label{font-size:.875rem;font-weight:600;color:var(--text)}
+.slider-sublabels{display:flex;justify-content:space-between;font-size:.68rem;color:var(--text3);margin-top:.1rem}
+.slider-value{font-size:.8rem;font-weight:700;color:var(--coral);min-width:28px;text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:999px;outline:none;cursor:pointer;
+  background:linear-gradient(to right,var(--coral) 0%,var(--coral) var(--val,50%),var(--border) var(--val,50%),var(--border) 100%);
+  transition:background var(--t)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--coral);border:3px solid #fff;box-shadow:0 2px 8px rgba(200,80,40,.3);transition:transform var(--t),box-shadow var(--t)}
+input[type=range]:hover::-webkit-slider-thumb,input[type=range]:active::-webkit-slider-thumb{transform:scale(1.2);box-shadow:0 4px 16px rgba(200,80,40,.45)}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--coral);border:3px solid #fff;box-shadow:0 2px 8px rgba(200,80,40,.3);cursor:pointer}
+
+/* FILTERS */
+.filter-section{margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border)}
+.filter-title{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:.6rem}
+.tag-group{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.5rem}
+.tag{padding:.28rem .65rem;border-radius:999px;border:1.5px solid var(--border);background:#fff;color:var(--text2);font-size:.76rem;font-weight:600;cursor:pointer;transition:all var(--t);user-select:none}
+.tag:hover{border-color:var(--coral-lt);color:var(--coral)}
+.tag.active{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 2px 8px rgba(200,80,40,.25)}
+
+/* TOGGLE */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0}
+.toggle-label{font-size:.875rem;font-weight:600;color:var(--text)}
+.toggle{position:relative;width:42px;height:24px;cursor:pointer;display:inline-block}
+.toggle input{display:none}
+.toggle-track{width:42px;height:24px;border-radius:999px;background:var(--border);transition:background var(--t);position:relative}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:transform var(--t)}
+.toggle input:checked+.toggle-track{background:var(--coral)}
+.toggle input:checked+.toggle-track .toggle-thumb{transform:translateX(18px)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.7rem 1.4rem;border-radius:999px;font-weight:700;font-size:.9rem;cursor:pointer;border:none;transition:all var(--t)}
+.btn-primary{background:var(--grad);color:#fff;box-shadow:0 4px 16px rgba(200,80,40,.3);width:100%;margin-top:1.2rem;padding:.85rem;font-size:1rem}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(200,80,40,.4)}
+.btn-ghost{background:transparent;color:var(--text3);border:1.5px solid var(--border);font-size:.8rem;padding:.45rem .9rem}
+.btn-ghost:hover{border-color:var(--coral-lt);color:var(--coral)}
+.btn-row{display:flex;justify-content:center;margin-top:.6rem}
+
+/* TOP MATCH CARD */
+.top-match-card{background:var(--grad);border-radius:var(--r);padding:1.8rem;position:relative;overflow:hidden;box-shadow:var(--shadow-lg);margin-bottom:1rem;animation:fadeIn .4s ease}
+.top-match-card::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.1);pointer-events:none}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.top-badge{display:inline-flex;align-items:center;gap:.3rem;background:rgba(255,255,255,.2);padding:.22rem .65rem;border-radius:999px;font-size:.7rem;font-weight:700;color:#fff;letter-spacing:.05em;margin-bottom:.9rem}
+.top-inner{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
+.top-name{font-size:clamp(1.5rem,4vw,2.1rem);font-weight:800;color:#fff;line-height:1.1;margin-bottom:.3rem}
+.top-meta{margin-top:.75rem;display:flex;gap:.4rem;flex-wrap:wrap}
+.meta-chip{background:rgba(255,255,255,.18);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;font-weight:600;color:#fff}
+.top-desc{color:rgba(255,255,255,.85);font-size:.88rem;line-height:1.55;margin-top:.8rem}
+.match-pct-big{font-size:3.2rem;font-weight:900;color:#fff;line-height:1;text-align:right}
+.match-pct-label{font-size:.75rem;color:rgba(255,255,255,.7);font-weight:600;text-align:right;margin-top:.1rem}
+.match-bar-track{height:4px;background:rgba(255,255,255,.25);border-radius:999px;overflow:hidden;margin-top:.5rem;min-width:80px}
+.match-bar-fill{height:100%;background:rgba(255,255,255,.85);border-radius:999px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+
+/* DETAIL CARD */
+.detail-card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;margin-bottom:1rem;box-shadow:var(--shadow)}
+.detail-tabs{display:flex;border-bottom:1px solid var(--border)}
+.detail-tab{flex:1;padding:.75rem;font-size:.82rem;font-weight:700;text-align:center;cursor:pointer;color:var(--text3);transition:all var(--t);border-bottom:2.5px solid transparent}
+.detail-tab.active{color:var(--coral);border-bottom-color:var(--coral);background:rgba(255,107,74,.04)}
+.detail-content{padding:1.2rem}
+.ingredient-list{list-style:none;display:flex;flex-direction:column;gap:.45rem}
+.ingredient-item{display:flex;justify-content:space-between;align-items:center;padding:.45rem .75rem;background:var(--bg);border-radius:var(--r-sm);font-size:.84rem}
+.ingredient-name{font-weight:600;color:var(--text)}
+.ingredient-amount{color:var(--coral);font-weight:700;font-size:.78rem}
+.glass-garnish{margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border);display:flex;gap:.8rem}
+.gg-item{flex:1;background:var(--bg);padding:.55rem .75rem;border-radius:var(--r-sm)}
+.gg-label{font-size:.66rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:.2rem}
+.gg-val{font-size:.82rem;font-weight:600;color:var(--text)}
+.steps-list{list-style:none;display:flex;flex-direction:column;gap:.6rem}
+.step-item{display:flex;gap:.7rem;align-items:flex-start}
+.step-num{min-width:24px;height:24px;border-radius:50%;background:var(--grad);color:#fff;font-size:.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-text{font-size:.84rem;color:var(--text);line-height:1.5}
+
+/* ALTERNATIVES */
+.alt-title{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:.65rem}
+.alt-grid{display:flex;flex-direction:column;gap:.45rem}
+.alt-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:.8rem 1rem;cursor:pointer;display:flex;align-items:center;gap:.7rem;transition:all var(--t);animation:fadeIn .35s ease}
+.alt-card:hover{border-color:var(--coral-lt);box-shadow:0 4px 16px rgba(200,80,40,.12);transform:translateX(3px)}
+.alt-emoji{font-size:1.3rem}
+.alt-info{flex:1;min-width:0}
+.alt-name{font-weight:700;font-size:.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alt-sub{font-size:.72rem;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alt-pct{font-weight:800;font-size:1rem;color:var(--coral);white-space:nowrap;text-align:right}
+.alt-pct-lbl{font-size:.63rem;color:var(--text3);text-align:right}
+
+/* EMPTY */
+.empty{text-align:center;padding:3rem 1.5rem;color:var(--text3)}
+.empty-icon{font-size:3rem;margin-bottom:1rem}
+.empty-title{font-weight:700;font-size:1.05rem;margin-bottom:.35rem;color:var(--text2)}
+.empty-sub{font-size:.84rem}
+
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:var(--coral-lt)}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <h1>🍹 Cocktail Matcher</h1>
+  <p>Stelle dein Geschmacksprofil ein — wir finden deinen perfekten Cocktail</p>
+</header>
+
+<main class="container">
+  <div class="layout">
+
+    <!-- LEFT: Controls -->
+    <aside>
+      <div class="panel">
+        <div class="panel-title">🎚 Dein Geschmacksprofil</div>
+        <div class="sliders-grid" id="sliderContainer"></div>
+
+        <div class="filter-section">
+          <div class="filter-title">Basis-Spirituose</div>
+          <div class="tag-group" id="spiritFilters"></div>
+          <div class="filter-title" style="margin-top:.75rem">Anlass</div>
+          <div class="tag-group" id="occasionFilters"></div>
+          <div class="toggle-row" style="margin-top:.5rem">
+            <span class="toggle-label">🍋 Nur alkoholfrei</span>
+            <label class="toggle">
+              <input type="checkbox" id="nonAlcoholicToggle"/>
+              <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            </label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="findBtn">🍸 Cocktail finden</button>
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="resetBtn">↺ Zurücksetzen</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT: Results -->
+    <section id="resultsArea">
+      <div class="empty" id="emptyState">
+        <div class="empty-icon">🍸</div>
+        <div class="empty-title">Bereit zum Mixen?</div>
+        <div class="empty-sub">Stelle dein Geschmacksprofil ein — die Ergebnisse aktualisieren sich live.</div>
+      </div>
+      <div id="resultsContent" style="display:none"></div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+/* =============================================================
+   COCKTAIL DATABASE
+   Taste values (0–100):
+     sweetness      0=herb/trocken  100=sehr süß
+     acidity        0=mild          100=spritzig-sauer
+     bitterness     0=gar nicht     100=stark bitter
+     alcoholStrength 0=leicht       100=stark
+     fruitiness     0=neutral       100=sehr fruchtig
+     herbSpice      0=clean         100=würzig/herbal
+   Add new cocktails by appending an object following the same schema.
+============================================================= */
+const DB = [
+  /* ── TEQUILA ── */
+  {id:'margarita',name:'Margarita',emoji:'🍋',base:'Tequila',alcoholFree:false,occasion:['Sommer','Party'],
+   profile:{sweetness:35,acidity:75,bitterness:10,alcoholStrength:65,fruitiness:60,herbSpice:20},
+   description:'Der Klassiker aus Mexiko – ein erfrischendes Spiel aus Lime-Säure, Salz und Tequila. Perfekt für heiße Abende und gesellige Runden.',
+   ingredients:[{name:'Tequila Blanco',amount:'5 cl'},{name:'Triple Sec / Cointreau',amount:'2 cl'},{name:'Limettensaft (frisch)',amount:'2 cl'},{name:'Salzrand',amount:'nach Wunsch'}],
+   steps:['Glasrand mit Limette benetzen und in Salz tauchen.','Alle Zutaten mit Eis in einen Shaker geben.','Kräftig 15 Sek. schütteln, bis der Shaker außen eiskalt ist.','Doppelt in ein eisgefülltes Glas abseihen.'],
+   glass:'Margarita- oder Rocks-Glas',garnish:'Limettenscheibe, Salzrand'},
+
+  {id:'paloma',name:'Paloma',emoji:'🌸',base:'Tequila',alcoholFree:false,occasion:['Sommer','Aperitif'],
+   profile:{sweetness:40,acidity:65,bitterness:20,alcoholStrength:45,fruitiness:70,herbSpice:10},
+   description:'Mexikos beliebtester Tequila-Drink – leichter und erfrischender als die Margarita. Die Grapefruit-Limonade bringt eine wunderbar bittere Fruchtigkeit.',
+   ingredients:[{name:'Tequila Blanco',amount:'5 cl'},{name:'Limettensaft',amount:'1.5 cl'},{name:'Grapefruit-Limonade',amount:'12 cl'},{name:'Prise Salz',amount:'1 Prise'}],
+   steps:['Tequila und Limettensaft in ein eisgefülltes Highball-Glas geben.','Mit Grapefruit-Limonade aufgießen.','Leicht umrühren, mit Salz abschmecken.'],
+   glass:'Highball-Glas',garnish:'Grapefruitscheibe, Salzrand optional'},
+
+  {id:'tequila-sunrise',name:'Tequila Sunrise',emoji:'🌅',base:'Tequila',alcoholFree:false,occasion:['Sommer','Party'],
+   profile:{sweetness:70,acidity:30,bitterness:5,alcoholStrength:40,fruitiness:80,herbSpice:5},
+   description:'Ein optischer Hingucker: Grenadine sinkt langsam durch den Orangensaft und erzeugt einen farbenprächtigen Sonnenaufgangs-Effekt. Fruchtig-süß und sehr zugänglich.',
+   ingredients:[{name:'Tequila',amount:'4.5 cl'},{name:'Orangensaft (frisch)',amount:'9 cl'},{name:'Grenadine',amount:'1.5 cl'}],
+   steps:['Glas mit Eiswürfeln füllen.','Tequila und Orangensaft hinzugeben und kurz umrühren.','Grenadine langsam am Glasrand entlang eingießen – nicht umrühren.'],
+   glass:'Highball-Glas',garnish:'Orangenscheibe, Cocktailkirsche'},
+
+  {id:'spicy-margarita',name:'Spicy Margarita',emoji:'🌶️',base:'Tequila',alcoholFree:false,occasion:['Party','Sommer'],
+   profile:{sweetness:25,acidity:70,bitterness:15,alcoholStrength:65,fruitiness:45,herbSpice:85},
+   description:'Die feurige Schwester der Margarita. Jalapeño-Schärfe trifft auf spritzige Lime – ein aufregender Kontrast für Liebhaber intensiver Aromen.',
+   ingredients:[{name:'Tequila Blanco',amount:'5 cl'},{name:'Triple Sec',amount:'2 cl'},{name:'Limettensaft',amount:'2.5 cl'},{name:'Jalapeño-Scheiben',amount:'3–4 Stück'},{name:'Agavensirup',amount:'1 cl'}],
+   steps:['Jalapeños im Shaker muddlen.','Restliche Zutaten und Eis hinzugeben.','Kräftig schütteln und doppelt in ein Rocks-Glas abseihen.'],
+   glass:'Rocks-Glas',garnish:'Jalapeño-Scheibe, Limettenspalte'},
+
+  {id:'el-diablo',name:'El Diablo',emoji:'😈',base:'Tequila',alcoholFree:false,occasion:['Party','Sommer'],
+   profile:{sweetness:45,acidity:55,bitterness:20,alcoholStrength:40,fruitiness:65,herbSpice:65},
+   description:'Tequila trifft auf Cassis und Ingwerbier für einen lang gezogenen, aufregend würzigen Drink mit tiefer Fruchtigkeit.',
+   ingredients:[{name:'Tequila',amount:'4.5 cl'},{name:'Crème de Cassis',amount:'1.5 cl'},{name:'Limettensaft',amount:'1.5 cl'},{name:'Ginger Beer',amount:'zum Auffüllen'}],
+   steps:['Tequila, Cassis und Limettensaft in ein Glas mit Eis geben.','Mit Ginger Beer auffüllen, sanft umrühren.'],
+   glass:'Highball-Glas',garnish:'Limettenspalte'},
+
+  {id:'mezcal-negroni',name:'Mezcal Negroni',emoji:'🔥',base:'Tequila',alcoholFree:false,occasion:['Aperitif','Digestif'],
+   profile:{sweetness:25,acidity:10,bitterness:80,alcoholStrength:78,fruitiness:10,herbSpice:85},
+   description:'Der rauchige Bruder des Negroni: Mezcal ersetzt den Gin und gibt dem Drink eine faszinierende Tiefe. Nichts für schwache Nerven.',
+   ingredients:[{name:'Mezcal',amount:'3 cl'},{name:'Campari',amount:'3 cl'},{name:'Süßer Wermut (Rosso)',amount:'3 cl'}],
+   steps:['Alle Zutaten mit Eis rühren.','In ein Rocks-Glas mit großem Eiswürfel abseihen.'],
+   glass:'Rocks-Glas',garnish:'Orangenzeste'},
+
+  {id:'naked-famous',name:'Naked and Famous',emoji:'🌵',base:'Tequila',alcoholFree:false,occasion:['Party','Digestif'],
+   profile:{sweetness:40,acidity:60,bitterness:65,alcoholStrength:70,fruitiness:30,herbSpice:60},
+   description:'Gleiche Teile, maximale Wirkung: Mezcal, Aperol, Chartreuse, Limette. Rauchig, bitter, komplex – ein moderner Klassiker.',
+   ingredients:[{name:'Mezcal',amount:'2.25 cl'},{name:'Aperol',amount:'2.25 cl'},{name:'Yellow Chartreuse',amount:'2.25 cl'},{name:'Limettensaft',amount:'2.25 cl'}],
+   steps:['Alle Zutaten mit Eis shaken.','Doppelt in eine Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Keine'},
+
+  /* ── GIN ── */
+  {id:'gin-tonic',name:'Gin & Tonic',emoji:'🌿',base:'Gin',alcoholFree:false,occasion:['Aperitif','Sommer'],
+   profile:{sweetness:20,acidity:25,bitterness:55,alcoholStrength:45,fruitiness:20,herbSpice:70},
+   description:'Der Klassiker schlechthin: herb-botanisch, mit dem charakteristischen Tonic-Bitter. Je nach Gin eine Reise durch dutzende Botanicals.',
+   ingredients:[{name:'Gin',amount:'5 cl'},{name:'Tonic Water',amount:'15 cl'}],
+   steps:['Ballon-Glas mit großen Eiswürfeln füllen.','Gin über das Eis gießen.','Tonic Water langsam am Glasrand aufgießen.','Einmal kurz umrühren.'],
+   glass:'Ballon-Glas',garnish:'Gurke, Limette oder Wacholder – je nach Gin'},
+
+  {id:'negroni',name:'Negroni',emoji:'🍊',base:'Gin',alcoholFree:false,occasion:['Aperitif','Digestif'],
+   profile:{sweetness:30,acidity:15,bitterness:80,alcoholStrength:75,fruitiness:15,herbSpice:75},
+   description:'Italiens Aperitivo der Stunde – ein elegantes Trio aus Gin, Campari und süßem Wermut. Komplex, bitter, unwiderstehlich.',
+   ingredients:[{name:'Gin',amount:'3 cl'},{name:'Campari',amount:'3 cl'},{name:'Roter Wermut (Rosso)',amount:'3 cl'}],
+   steps:['Alle Zutaten mit Eis in ein Rührglas geben.','Ca. 25 Sek. rühren.','In ein Rocks-Glas mit großem Eiswürfel abseihen.'],
+   glass:'Rocks-Glas',garnish:'Orangenscheibe'},
+
+  {id:'tom-collins',name:'Tom Collins',emoji:'🍋',base:'Gin',alcoholFree:false,occasion:['Sommer','Aperitif'],
+   profile:{sweetness:45,acidity:65,bitterness:20,alcoholStrength:40,fruitiness:45,herbSpice:40},
+   description:'Ein zeitloser Longdrink – Gin mit Zitronensaft, Zucker und Soda. Erfrischend leicht und wunderbar ausbalanciert.',
+   ingredients:[{name:'Gin',amount:'4.5 cl'},{name:'Zitronensaft (frisch)',amount:'3 cl'},{name:'Zuckersirup',amount:'1.5 cl'},{name:'Sodawasser',amount:'zum Auffüllen'}],
+   steps:['Gin, Zitronensaft und Sirup mit Eis shaken.','In ein Glas mit Eis abseihen.','Mit Sodawasser auffüllen.'],
+   glass:'Collins-Glas (Highball)',garnish:'Zitronenscheibe'},
+
+  {id:'french-75',name:'French 75',emoji:'🥂',base:'Gin',alcoholFree:false,occasion:['Aperitif','Party'],
+   profile:{sweetness:40,acidity:60,bitterness:15,alcoholStrength:55,fruitiness:40,herbSpice:30},
+   description:'Elegant und prickelnd – Gin und Champagner in einer glücklichen Liaison. Benannt nach dem berühmten französischen Feldgeschütz.',
+   ingredients:[{name:'Gin',amount:'3 cl'},{name:'Zitronensaft',amount:'1.5 cl'},{name:'Zuckersirup',amount:'1 cl'},{name:'Champagner / Sekt',amount:'ca. 8 cl'}],
+   steps:['Gin, Zitronensaft und Sirup mit Eis shaken.','In eine Champagnerflöte abseihen.','Mit Champagner auffüllen.'],
+   glass:'Champagnerflöte',garnish:'Zitronenzeste'},
+
+  {id:'last-word',name:'Last Word',emoji:'🍀',base:'Gin',alcoholFree:false,occasion:['Digestif','Party'],
+   profile:{sweetness:40,acidity:65,bitterness:35,alcoholStrength:75,fruitiness:40,herbSpice:75},
+   description:'Ein vergessener Prohibition-Klassiker: gleiche Teile Gin, Chartreuse, Maraschino und Limette – vielschichtig und unerwarteter Favorit.',
+   ingredients:[{name:'Gin',amount:'2.25 cl'},{name:'Green Chartreuse',amount:'2.25 cl'},{name:'Maraschino Liqueur',amount:'2.25 cl'},{name:'Limettensaft',amount:'2.25 cl'}],
+   steps:['Alle Zutaten mit Eis shaken.','In eine gekühlte Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Cocktailkirsche'},
+
+  {id:'bees-knees',name:"Bee's Knees",emoji:'🍯',base:'Gin',alcoholFree:false,occasion:['Aperitif','Party'],
+   profile:{sweetness:55,acidity:60,bitterness:15,alcoholStrength:55,fruitiness:35,herbSpice:35},
+   description:'Prohibition-Klassiker aus den 1920ern: Honigsirup mildert die Zitrusschärfe auf eine ganz besondere Art. Angenehm und komplex.',
+   ingredients:[{name:'Gin',amount:'4.5 cl'},{name:'Zitronensaft',amount:'2 cl'},{name:'Honigsirup',amount:'2 cl'}],
+   steps:['Alle Zutaten mit Eis shaken.','Doppelt in eine gekühlte Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Zitronenzeste'},
+
+  {id:'bramble',name:'Bramble',emoji:'🫐',base:'Gin',alcoholFree:false,occasion:['Party','Sommer'],
+   profile:{sweetness:55,acidity:65,bitterness:15,alcoholStrength:50,fruitiness:80,herbSpice:25},
+   description:"Dick Bradsell's britischer Klassiker aus den 80ern: Gin mit Brombeerliqueur über crushed Ice – eine Explosion aus Frucht und Frische.",
+   ingredients:[{name:'Gin',amount:'4.5 cl'},{name:'Zitronensaft',amount:'2 cl'},{name:'Zuckersirup',amount:'1 cl'},{name:'Crème de Mûre (Brombeerliqueur)',amount:'1.5 cl'}],
+   steps:['Gin, Zitronensaft und Sirup shaken.','Über crushed Ice in ein Rocks-Glas abseihen.','Crème de Mûre langsam obenauf gießen.'],
+   glass:'Rocks-Glas',garnish:'Brombeeren, Zitronenscheibe'},
+
+  {id:'aviation',name:'Aviation',emoji:'✈️',base:'Gin',alcoholFree:false,occasion:['Aperitif','Party'],
+   profile:{sweetness:45,acidity:55,bitterness:20,alcoholStrength:60,fruitiness:45,herbSpice:40},
+   description:'Ein blumig-violetter Traum aus der Vorprohibition-Ära. Crème de Violette gibt dem Drink seine charakteristische Farbe und florales Aroma.',
+   ingredients:[{name:'Gin',amount:'4.5 cl'},{name:'Maraschino Liqueur',amount:'1.5 cl'},{name:'Crème de Violette',amount:'0.75 cl'},{name:'Zitronensaft',amount:'2 cl'}],
+   steps:['Alle Zutaten mit Eis shaken.','In eine gekühlte Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Cocktailkirsche'},
+
+  {id:'clover-club',name:'Clover Club',emoji:'🍓',base:'Gin',alcoholFree:false,occasion:['Aperitif'],
+   profile:{sweetness:60,acidity:60,bitterness:10,alcoholStrength:50,fruitiness:70,herbSpice:15},
+   description:'Aus dem frühen 20. Jh.: aufgeschäumter Gin-Sour mit Himbeersaft. Seidig, fruchtig, und optisch bezaubernd rosa.',
+   ingredients:[{name:'Gin',amount:'4.5 cl'},{name:'Zitronensaft',amount:'2 cl'},{name:'Himbeersirup',amount:'2 cl'},{name:'Eiweiß',amount:'1 Stück'}],
+   steps:['Dry Shake ohne Eis.','Eis hinzugeben und erneut shaken.','In eine Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Frische Himbeeren'},
+
+  {id:'singapore-sling',name:'Singapore Sling',emoji:'🌺',base:'Gin',alcoholFree:false,occasion:['Party','Sommer'],
+   profile:{sweetness:65,acidity:45,bitterness:20,alcoholStrength:40,fruitiness:75,herbSpice:25},
+   description:'Im Raffles Hotel Singapur um 1915 kreiert: Gin mit Kirschwasser, Ananas und Grenadine – eine tropisch-süße Reise.',
+   ingredients:[{name:'Gin',amount:'3 cl'},{name:'Cherry Heering',amount:'1.5 cl'},{name:'Cointreau',amount:'0.75 cl'},{name:'Benediktiner',amount:'0.75 cl'},{name:'Ananassaft',amount:'9 cl'},{name:'Limettensaft',amount:'1.5 cl'},{name:'Grenadine',amount:'1 cl'}],
+   steps:['Alle Zutaten mit Eis shaken.','In ein eisgefülltes Highball-Glas abseihen.'],
+   glass:'Highball-Glas',garnish:'Ananasscheibe, Cocktailkirsche'},
+
+  /* ── RUM ── */
+  {id:'mojito',name:'Mojito',emoji:'🌿',base:'Rum',alcoholFree:false,occasion:['Sommer','Party'],
+   profile:{sweetness:55,acidity:65,bitterness:10,alcoholStrength:35,fruitiness:40,herbSpice:70},
+   description:'Kubas Nationalkocktail: frische Minze, Limette und Rum – ein Kühler, der sofort Sommerfeeling aufkommen lässt.',
+   ingredients:[{name:'Weißer Rum',amount:'4.5 cl'},{name:'Limettensaft',amount:'3 cl'},{name:'Zuckersirup',amount:'2 cl'},{name:'Frische Minzblätter',amount:'8–10 Blätter'},{name:'Sodawasser',amount:'zum Auffüllen'}],
+   steps:['Minze und Limettensaft im Glas sanft muddlen.','Crushed Ice hinzugeben.','Rum und Sirup hinzufügen.','Mit Soda auffüllen, leicht umrühren.'],
+   glass:'Highball-Glas',garnish:'Minzzweig, Limettenscheibe'},
+
+  {id:'daiquiri',name:'Daiquiri',emoji:'🍈',base:'Rum',alcoholFree:false,occasion:['Sommer','Party'],
+   profile:{sweetness:35,acidity:75,bitterness:5,alcoholStrength:60,fruitiness:55,herbSpice:10},
+   description:'Puristisch und brillant: drei Zutaten, perfekt ausbalanciert. Hemingways Lieblingsdrink zeigt, wie wenig man braucht, um etwas Großartiges zu schaffen.',
+   ingredients:[{name:'Weißer Rum',amount:'6 cl'},{name:'Limettensaft (frisch)',amount:'2.5 cl'},{name:'Zuckersirup',amount:'1.5 cl'}],
+   steps:['Alle Zutaten mit Eis in einen Shaker geben.','Kräftig 15 Sek. shaken.','Doppelt in eine gekühlte Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Limettenzeste'},
+
+  {id:'pina-colada',name:'Piña Colada',emoji:'🍍',base:'Rum',alcoholFree:false,occasion:['Sommer','Party'],
+   profile:{sweetness:80,acidity:20,bitterness:0,alcoholStrength:35,fruitiness:90,herbSpice:5},
+   description:'Tropischer Urlaubsdrink aus Puerto Rico: cremige Kokosnuss und süße Ananas verwandeln jeden Abend in eine Strandparty.',
+   ingredients:[{name:'Weißer Rum',amount:'4.5 cl'},{name:'Kokosnusscreme',amount:'3 cl'},{name:'Ananassaft',amount:'9 cl'}],
+   steps:['Alle Zutaten mit zerstoßenem Eis in einen Mixer geben.','Cremig mixen.','In ein Glas gießen.'],
+   glass:'Hurricane-Glas',garnish:'Ananasstück, Cocktailkirsche, Schirmchen'},
+
+  {id:'caipirinha',name:'Caipirinha',emoji:'🍊',base:'Rum',alcoholFree:false,occasion:['Sommer','Party'],
+   profile:{sweetness:40,acidity:75,bitterness:10,alcoholStrength:65,fruitiness:60,herbSpice:5},
+   description:'Brasiliens Nationalkocktail mit Cachaça – dem Zuckerrohrschnaps. Rustikal, erfrischend, mit einer angenehmen Rauheit.',
+   ingredients:[{name:'Cachaça',amount:'6 cl'},{name:'Limette',amount:'1 Stück (in Spalten)'},{name:'Brauner Rohrzucker',amount:'2 TL'}],
+   steps:['Limettenspalten mit Rohrzucker im Glas muddlen.','Glas mit crushed Ice füllen.','Cachaça hinzugeben und kurz umrühren.'],
+   glass:'Rocks-Glas',garnish:'Limettenspalte'},
+
+  {id:'mai-tai',name:'Mai Tai',emoji:'🌺',base:'Rum',alcoholFree:false,occasion:['Party','Sommer'],
+   profile:{sweetness:65,acidity:45,bitterness:15,alcoholStrength:55,fruitiness:75,herbSpice:30},
+   description:'Der König der Tiki-Drinks: Doppelrum, Orgeat und frischer Limettensaft. Vielschichtig, festlich und tropisch wie ein Strandurlaub.',
+   ingredients:[{name:'Dunkler Rum',amount:'3 cl'},{name:'Weißer Rum',amount:'3 cl'},{name:'Orange Curaçao',amount:'1.5 cl'},{name:'Orgeat (Mandelsirup)',amount:'1.5 cl'},{name:'Limettensaft',amount:'3 cl'}],
+   steps:['Alles außer dunklem Rum mit crushed Ice shaken.','In Tiki-Glas mit crushed Ice geben.','Dunklen Rum als Float obenauf geben.'],
+   glass:'Tiki-Glas',garnish:'Minzzweig, Limette, Cocktailkirsche'},
+
+  {id:'dark-stormy',name:'Dark & Stormy',emoji:'⛈️',base:'Rum',alcoholFree:false,occasion:['Party','Sommer'],
+   profile:{sweetness:50,acidity:35,bitterness:20,alcoholStrength:45,fruitiness:30,herbSpice:75},
+   description:"Bermudas Nationalgetränk: dunkler Rum mit scharfem Ingwerbier. Die Ingwerwürze macht diesen Drink unverkennbar und belebend.",
+   ingredients:[{name:"Dunkler Rum (Gosling's)",amount:'6 cl'},{name:'Ginger Beer',amount:'12 cl'},{name:'Limettensaft',amount:'1 cl'}],
+   steps:['Ginger Beer in ein Highball-Glas mit Eis geben.','Rum vorsichtig als Float obenauf gießen.'],
+   glass:'Highball-Glas',garnish:'Limettenscheibe'},
+
+  {id:'jungle-bird',name:'Jungle Bird',emoji:'🦜',base:'Rum',alcoholFree:false,occasion:['Digestif','Party'],
+   profile:{sweetness:50,acidity:50,bitterness:65,alcoholStrength:55,fruitiness:70,herbSpice:30},
+   description:'Ein unerwarteter Tiki-Klassiker aus Malaysia: bitterer Campari trifft auf tropischen Ananassaft. Der Gegensatz macht diesen Drink unwiderstehlich.',
+   ingredients:[{name:'Dunkler Rum',amount:'4.5 cl'},{name:'Campari',amount:'3 cl'},{name:'Ananassaft',amount:'4.5 cl'},{name:'Limettensaft',amount:'1.5 cl'},{name:'Zuckersirup',amount:'1.5 cl'}],
+   steps:['Alle Zutaten mit Eis shaken.','In ein Tiki-Glas mit crushed Ice abseihen.'],
+   glass:'Tiki-Glas',garnish:'Ananasblatt, Cocktailkirsche'},
+
+  /* ── VODKA ── */
+  {id:'moscow-mule',name:'Moscow Mule',emoji:'🫙',base:'Vodka',alcoholFree:false,occasion:['Sommer','Party'],
+   profile:{sweetness:35,acidity:45,bitterness:15,alcoholStrength:35,fruitiness:30,herbSpice:70},
+   description:'Seit den 1940ern: Vodka und feuriges Ginger Beer, serviert im legendären Kupferkrug. Die Kälte und Ingwerschärfe sind sein Markenzeichen.',
+   ingredients:[{name:'Vodka',amount:'4.5 cl'},{name:'Ginger Beer',amount:'12 cl'},{name:'Limettensaft',amount:'1.5 cl'}],
+   steps:['Kupferkrug mit crushed Ice füllen.','Vodka und Limettensaft hinzugeben.','Mit Ginger Beer auffüllen, sanft umrühren.'],
+   glass:'Kupferkrug',garnish:'Limettenscheibe, Minzzweig'},
+
+  {id:'cosmopolitan',name:'Cosmopolitan',emoji:'🍸',base:'Vodka',alcoholFree:false,occasion:['Party'],
+   profile:{sweetness:55,acidity:60,bitterness:10,alcoholStrength:50,fruitiness:70,herbSpice:10},
+   description:'Sex and the Citys Lieblingsdrink: knallpink, fruchtig-herb mit Cranberry und einem Hauch Orange. Für glamouröse Abende gemacht.',
+   ingredients:[{name:'Citrus-Vodka',amount:'4.5 cl'},{name:'Cointreau',amount:'2 cl'},{name:'Cranberrysaft',amount:'3 cl'},{name:'Limettensaft',amount:'1.5 cl'}],
+   steps:['Alle Zutaten mit Eis shaken.','In eine gekühlte Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Orangenzeste (flambiert)'},
+
+  {id:'espresso-martini',name:'Espresso Martini',emoji:'☕',base:'Vodka',alcoholFree:false,occasion:['Digestif','Party'],
+   profile:{sweetness:45,acidity:15,bitterness:75,alcoholStrength:65,fruitiness:5,herbSpice:10},
+   description:"Dick Bradsell's Meisterwerk: der perfekte Digestif-Cocktail, der gleichzeitig belebt und entspannt. Ein Espresso in Glasform – für lange Nächte.",
+   ingredients:[{name:'Vodka',amount:'5 cl'},{name:'Espresso (frisch, abgekühlt)',amount:'3 cl'},{name:'Kahlúa (Kaffeeliqueur)',amount:'2 cl'},{name:'Zuckersirup',amount:'0.5 cl'}],
+   steps:['Alle Zutaten in den Shaker geben.','Sehr kräftig mit viel Eis schütteln (für cremigen Schaum).','Doppelt in eine gekühlte Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Drei Kaffeebohnen'},
+
+  {id:'sex-on-beach',name:'Sex on the Beach',emoji:'🏖️',base:'Vodka',alcoholFree:false,occasion:['Party','Sommer'],
+   profile:{sweetness:75,acidity:30,bitterness:5,alcoholStrength:30,fruitiness:90,herbSpice:5},
+   description:'Der ewige Ferien-Cocktail: süß, fruchtig, unkompliziert. Pfirsich und Orange in einer farbenfrohen, sorgenfreien Kombination.',
+   ingredients:[{name:'Vodka',amount:'4 cl'},{name:'Pfirsichlikör',amount:'2 cl'},{name:'Orangensaft',amount:'6 cl'},{name:'Cranberrysaft',amount:'3 cl'}],
+   steps:['Vodka, Pfirsichlikör und Orangensaft shaken.','In ein eisgefülltes Glas geben.','Cranberrysaft langsam obenauf gießen.'],
+   glass:'Highball-Glas',garnish:'Orangenscheibe, Cocktailkirsche'},
+
+  {id:'white-russian',name:'White Russian',emoji:'🥛',base:'Vodka',alcoholFree:false,occasion:['Digestif','Party'],
+   profile:{sweetness:70,acidity:5,bitterness:30,alcoholStrength:55,fruitiness:5,herbSpice:5},
+   description:"The Dude's Lieblingsdrink aus \"The Big Lebowski\": Vodka, Kaffeeliqueur und Sahne – cremig, süß und kaffeebitter zugleich.",
+   ingredients:[{name:'Vodka',amount:'5 cl'},{name:'Kahlúa',amount:'3 cl'},{name:'Sahne (oder Milch)',amount:'3 cl'}],
+   steps:['Vodka und Kahlúa in ein Glas mit großen Eiswürfeln geben.','Sahne vorsichtig als Float obenauf gießen.'],
+   glass:'Rocks-Glas',garnish:'Kaffeebohnen optional'},
+
+  {id:'blue-lagoon',name:'Blue Lagoon',emoji:'🫐',base:'Vodka',alcoholFree:false,occasion:['Party','Sommer'],
+   profile:{sweetness:70,acidity:50,bitterness:5,alcoholStrength:30,fruitiness:80,herbSpice:5},
+   description:'Leuchtend blau und fruchtig-süß: Vodka mit Blue Curaçao und Limonade – visuell spektakulär und sehr zugänglich.',
+   ingredients:[{name:'Vodka',amount:'4 cl'},{name:'Blue Curaçao',amount:'2 cl'},{name:'Limonade (Lemon Soda)',amount:'zum Auffüllen'},{name:'Limettensaft',amount:'1 cl'}],
+   steps:['Vodka, Curaçao und Limettensaft in ein eisgefülltes Glas geben.','Mit Limonade auffüllen, sanft umrühren.'],
+   glass:'Highball-Glas',garnish:'Zitronenscheibe'},
+
+  /* ── WHISKY ── */
+  {id:'old-fashioned',name:'Old Fashioned',emoji:'🥃',base:'Whisky',alcoholFree:false,occasion:['Digestif'],
+   profile:{sweetness:30,acidity:10,bitterness:50,alcoholStrength:85,fruitiness:10,herbSpice:45},
+   description:'Der Urvater aller Cocktails – seit 1806 unverändert. Bourbon oder Rye, ein Hauch Zucker, Angostura Bitters: geradlinig, komplex, tief.',
+   ingredients:[{name:'Bourbon oder Rye Whiskey',amount:'6 cl'},{name:'Zuckersirup',amount:'1 cl'},{name:'Angostura Bitters',amount:'2 Dashes'},{name:'Orange Bitters',amount:'1 Dash'}],
+   steps:['Zucker und Bitters in ein Rührglas geben.','Whiskey und viel Eis hinzugeben.','Ca. 30 Sek. rühren.','Über einen großen Eiswürfel in ein Rocks-Glas abseihen.'],
+   glass:'Rocks-Glas',garnish:'Orangenzeste'},
+
+  {id:'manhattan',name:'Manhattan',emoji:'🌃',base:'Whisky',alcoholFree:false,occasion:['Digestif'],
+   profile:{sweetness:40,acidity:10,bitterness:40,alcoholStrength:80,fruitiness:10,herbSpice:60},
+   description:'New Yorks stärkster Beitrag zur Cocktailkultur: Whiskey und Wermut in einer majestätischen Verbindung. Würzig, süß, unerschütterlich elegant.',
+   ingredients:[{name:'Rye oder Bourbon Whiskey',amount:'6 cl'},{name:'Süßer Wermut (Rosso)',amount:'3 cl'},{name:'Angostura Bitters',amount:'2 Dashes'}],
+   steps:['Alle Zutaten mit Eis in ein Rührglas geben.','30 Sek. rühren.','In eine Cocktailschale oder ein Rocks-Glas abseihen.'],
+   glass:'Cocktailschale oder Rocks-Glas',garnish:'Cocktailkirsche oder Orangenzeste'},
+
+  {id:'whisky-sour',name:'Whisky Sour',emoji:'🍋',base:'Whisky',alcoholFree:false,occasion:['Party','Aperitif'],
+   profile:{sweetness:45,acidity:70,bitterness:20,alcoholStrength:60,fruitiness:40,herbSpice:20},
+   description:'Ausgewogen und zugänglich: Bourbon-Wärme trifft auf spritzige Zitronensäure. Mit Eiweiß bekommt er eine samtige Schaumkrone.',
+   ingredients:[{name:'Bourbon Whiskey',amount:'5 cl'},{name:'Zitronensaft',amount:'2.5 cl'},{name:'Zuckersirup',amount:'2 cl'},{name:'Eiweiß',amount:'1 Stück (optional)'}],
+   steps:['Dry Shake ohne Eis.','Eis hinzugeben und erneut shaken.','In ein Rocks-Glas oder eine Cocktailschale abseihen.'],
+   glass:'Rocks-Glas oder Cocktailschale',garnish:'Zitronenscheibe, Angostura-Tupfer auf dem Schaum'},
+
+  {id:'sazerac',name:'Sazerac',emoji:'🌿',base:'Whisky',alcoholFree:false,occasion:['Digestif'],
+   profile:{sweetness:25,acidity:10,bitterness:60,alcoholStrength:85,fruitiness:5,herbSpice:70},
+   description:'New Orleans ältester Cocktail: roh-elegant, von Absinthe und Peychauds Bitters geprägt. Ein Drink, der Charakter verlangt.',
+   ingredients:[{name:'Rye Whiskey',amount:'6 cl'},{name:"Peychaud's Bitters",amount:'2–3 Dashes'},{name:'Angostura Bitters',amount:'1 Dash'},{name:'Zuckersirup',amount:'1 cl'},{name:'Absinthe',amount:'zum Auswaschen'}],
+   steps:['Glas mit Absinthe auswaschen, Rest wegkippen.','Whiskey, Zucker und Bitters mit Eis rühren.','In das ausgewaschene Glas (ohne Eis) abseihen.'],
+   glass:'Rocks-Glas (eiskalt, ohne Eis)',garnish:'Zitronenzeste (nur ausdrücken, nicht einlegen)'},
+
+  {id:'penicillin',name:'Penicillin',emoji:'🍯',base:'Whisky',alcoholFree:false,occasion:['Digestif'],
+   profile:{sweetness:35,acidity:55,bitterness:30,alcoholStrength:65,fruitiness:30,herbSpice:80},
+   description:"Sam Ross' moderner Klassiker aus NYC: Blended Scotch mit Honig-Ingwer und einem rauchigen Islay-Float. Komplex wie ein guter Arzt.",
+   ingredients:[{name:'Blended Scotch Whisky',amount:'4.5 cl'},{name:'Islay Single Malt (z.B. Laphroaig)',amount:'1.5 cl'},{name:'Zitronensaft',amount:'2.25 cl'},{name:'Honig-Ingwer-Sirup',amount:'2.25 cl'}],
+   steps:['Blended Scotch, Zitronensaft und Sirup shaken.','In ein eisgefülltes Rocks-Glas abseihen.','Islay-Malt als Float obenauf geben.'],
+   glass:'Rocks-Glas',garnish:'Ingwerchip, kandierter Ingwer'},
+
+  {id:'paper-plane',name:'Paper Plane',emoji:'✈️',base:'Whisky',alcoholFree:false,occasion:['Party','Digestif'],
+   profile:{sweetness:40,acidity:65,bitterness:60,alcoholStrength:70,fruitiness:35,herbSpice:40},
+   description:'Vier gleiche Teile, perfekte Balance: Bourbon, Aperol, Amaro Nonino und Limette. Modern, intensiv und verblüffend stimmig.',
+   ingredients:[{name:'Bourbon',amount:'2.25 cl'},{name:'Aperol',amount:'2.25 cl'},{name:'Amaro Nonino',amount:'2.25 cl'},{name:'Limettensaft',amount:'2.25 cl'}],
+   steps:['Alle Zutaten mit Eis shaken.','Doppelt in eine gekühlte Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Keine'},
+
+  {id:'amaretto-sour',name:'Amaretto Sour',emoji:'🍑',base:'Whisky',alcoholFree:false,occasion:['Party','Digestif'],
+   profile:{sweetness:65,acidity:60,bitterness:20,alcoholStrength:40,fruitiness:45,herbSpice:15},
+   description:'Süß, sauer, samtweich: Amaretto und Bourbon ergeben einen Sour, der süchtig macht. Die Schaumkrone aus Eiweiß macht ihn perfekt.',
+   ingredients:[{name:'Amaretto',amount:'4.5 cl'},{name:'Bourbon',amount:'1.5 cl'},{name:'Zitronensaft',amount:'2.5 cl'},{name:'Eiweiß',amount:'1 Stück'}],
+   steps:['Dry Shake aller Zutaten ohne Eis.','Eis hinzugeben und erneut shaken.','In ein Rocks-Glas oder eine Cocktailschale abseihen.'],
+   glass:'Rocks-Glas oder Cocktailschale',garnish:'Zitronenzeste, Angostura-Tupfer'},
+
+  /* ── BRANDY / COGNAC ── */
+  {id:'sidecar',name:'Sidecar',emoji:'🍊',base:'Brandy',alcoholFree:false,occasion:['Digestif','Party'],
+   profile:{sweetness:45,acidity:65,bitterness:10,alcoholStrength:65,fruitiness:50,herbSpice:10},
+   description:'Zwischen den Kriegen in Paris geboren: Cognac, Cointreau und Zitrone – aristokratisch, elegant, zeitlos.',
+   ingredients:[{name:'Cognac',amount:'5 cl'},{name:'Cointreau (Triple Sec)',amount:'2 cl'},{name:'Zitronensaft',amount:'2 cl'}],
+   steps:['Glasrand optional in Zucker tauchen.','Alle Zutaten mit Eis shaken.','In eine gekühlte Cocktailschale abseihen.'],
+   glass:'Cocktailschale',garnish:'Zuckerrand, Zitronenzeste'},
+
+  /* ── SEKT / WEIN ── */
+  {id:'aperol-spritz',name:'Aperol Spritz',emoji:'🧡',base:'Sekt/Wein',alcoholFree:false,occasion:['Aperitif','Sommer'],
+   profile:{sweetness:50,acidity:35,bitterness:50,alcoholStrength:20,fruitiness:45,herbSpice:20},
+   description:'Italiens erfolgreichster Aperitivo: leicht bitter, leicht süß, prickelnd. Für sonnige Terrassen und gemütliche Vorspeisenrunden.',
+   ingredients:[{name:'Prosecco',amount:'9 cl'},{name:'Aperol',amount:'6 cl'},{name:'Sodawasser',amount:'3 cl'}],
+   steps:['Großes Weinglas mit Eiswürfeln füllen.','Prosecco und Aperol hinzugeben.','Einen Spritzer Soda zugeben, kurz umrühren.'],
+   glass:'Großes Weinglas',garnish:'Orangenscheibe'},
+
+  {id:'hugo',name:'Hugo Spritz',emoji:'🌸',base:'Sekt/Wein',alcoholFree:false,occasion:['Aperitif','Sommer'],
+   profile:{sweetness:60,acidity:30,bitterness:10,alcoholStrength:18,fruitiness:50,herbSpice:55},
+   description:'Aus Südtirol: Holunderblütensirup, Minze und Prosecco – das ist Sommer in einem Glas. Blumig, leicht, verführerisch.',
+   ingredients:[{name:'Prosecco',amount:'10 cl'},{name:'Holunderblütensirup (Elderflower)',amount:'3 cl'},{name:'Sodawasser',amount:'3 cl'},{name:'Frische Minzblätter',amount:'4–5 Blätter'}],
+   steps:['Glas mit Eis füllen, Minze hinzugeben.','Sirup und Soda einfüllen.','Prosecco aufgießen, kurz umrühren.'],
+   glass:'Großes Weinglas',garnish:'Limettenscheibe, Minzzweig'},
+
+  /* ── MULTI-SPIRIT ── */
+  {id:'long-island',name:'Long Island Iced Tea',emoji:'🍹',base:'Vodka',alcoholFree:false,occasion:['Party'],
+   profile:{sweetness:35,acidity:40,bitterness:20,alcoholStrength:90,fruitiness:25,herbSpice:15},
+   description:'Vier weiße Spirituosen, kaum merklich unter Cola versteckt. Erschreckend trinkbar für einen der stärksten Barklassiker.',
+   ingredients:[{name:'Vodka',amount:'1.5 cl'},{name:'Weißer Rum',amount:'1.5 cl'},{name:'Tequila',amount:'1.5 cl'},{name:'Gin',amount:'1.5 cl'},{name:'Triple Sec',amount:'1.5 cl'},{name:'Zitronensaft',amount:'3 cl'},{name:'Zuckersirup',amount:'2 cl'},{name:'Cola',amount:'zum Auffüllen'}],
+   steps:['Alle Spirituosen, Zitronensaft und Sirup shaken.','In ein eisgefülltes Highball-Glas abseihen.','Mit Cola auffüllen.'],
+   glass:'Highball-Glas',garnish:'Zitronenscheibe'},
+
+  /* ── ALKOHOLFREI ── */
+  {id:'virgin-mojito',name:'Virgin Mojito',emoji:'🌿',base:'Alkoholfrei',alcoholFree:true,occasion:['Sommer','Party'],
+   profile:{sweetness:55,acidity:65,bitterness:5,alcoholStrength:0,fruitiness:40,herbSpice:70},
+   description:'Alle Frische des Mojito, null Prozent Alkohol. Minze und Limette machen diesen Mocktail zu einem vollwertigen Genusserlebnis.',
+   ingredients:[{name:'Limettensaft',amount:'3 cl'},{name:'Zuckersirup',amount:'2 cl'},{name:'Frische Minze',amount:'8–10 Blätter'},{name:'Sodawasser',amount:'zum Auffüllen'}],
+   steps:['Minze und Limettensaft im Glas muddlen.','Crushed Ice hinzugeben.','Sirup hinzufügen, mit Soda auffüllen.'],
+   glass:'Highball-Glas',garnish:'Minzzweig, Limettenscheibe'},
+
+  {id:'shirley-temple',name:'Shirley Temple',emoji:'🌟',base:'Alkoholfrei',alcoholFree:true,occasion:['Party','Sommer'],
+   profile:{sweetness:80,acidity:30,bitterness:5,alcoholStrength:0,fruitiness:75,herbSpice:5},
+   description:'Der Kinderstar-Klassiker: Grenadine, Orangensaft und Ginger Ale ergeben einen leuchtend roten, festlichen Mocktail.',
+   ingredients:[{name:'Ginger Ale',amount:'12 cl'},{name:'Orangensaft',amount:'4 cl'},{name:'Grenadine',amount:'2 cl'}],
+   steps:['Glas mit Eis füllen.','Orangensaft und Grenadine hinzugeben.','Mit Ginger Ale aufgießen, leicht umrühren.'],
+   glass:'Highball-Glas',garnish:'Cocktailkirsche, Orangenscheibe'},
+
+  {id:'arnold-palmer',name:'Arnold Palmer',emoji:'🍵',base:'Alkoholfrei',alcoholFree:true,occasion:['Sommer'],
+   profile:{sweetness:40,acidity:50,bitterness:35,alcoholStrength:0,fruitiness:30,herbSpice:20},
+   description:'Benannt nach der Golflegende: halb Eistee, halb Limonade – eine entspannte, leicht herb-süße Erfrischung für heiße Tage.',
+   ingredients:[{name:'Schwarztee (kalt)',amount:'12 cl'},{name:'Zitronensaft',amount:'4 cl'},{name:'Zuckersirup',amount:'2 cl'}],
+   steps:['Tee und Zitronenlimonade separat vorbereiten.','In einem Glas mit Eis im Verhältnis 1:1 mischen.'],
+   glass:'Highball-Glas',garnish:'Zitronenscheibe'},
+
+  {id:'virgin-pina-colada',name:'Virgin Piña Colada',emoji:'🥥',base:'Alkoholfrei',alcoholFree:true,occasion:['Sommer','Party'],
+   profile:{sweetness:80,acidity:20,bitterness:0,alcoholStrength:0,fruitiness:90,herbSpice:0},
+   description:'Tropischer Genuss ohne Alkohol: cremige Kokosnuss und süße Ananas – der Drink, der wie ein Strandurlaub schmeckt.',
+   ingredients:[{name:'Ananassaft',amount:'12 cl'},{name:'Kokosnusscreme',amount:'4 cl'},{name:'Limettensaft',amount:'1 cl'}],
+   steps:['Alle Zutaten mit zerstoßenem Eis mixen.','In ein Glas gießen.'],
+   glass:'Hurricane-Glas',garnish:'Ananasstück, Schirmchen'},
+
+  {id:'watermelon-cooler',name:'Watermelon Cooler',emoji:'🍉',base:'Alkoholfrei',alcoholFree:true,occasion:['Sommer'],
+   profile:{sweetness:65,acidity:55,bitterness:5,alcoholStrength:0,fruitiness:90,herbSpice:15},
+   description:'Erfrischend wie kein anderer: frischer Wassermelonensaft mit Limette und Minze – der perfekte Begleiter für Sommerpartys.',
+   ingredients:[{name:'Wassermelonensaft (frisch)',amount:'15 cl'},{name:'Limettensaft',amount:'2 cl'},{name:'Minzblätter',amount:'5–6 Blätter'},{name:'Zuckersirup',amount:'1 cl'},{name:'Sodawasser',amount:'3 cl'}],
+   steps:['Minze im Glas leicht andrücken.','Eis, Wassermelonensaft, Limettensaft und Sirup hinzugeben.','Mit Soda aufgießen.'],
+   glass:'Highball-Glas',garnish:'Wassermelonenspalte, Minzzweig'},
+
+  {id:'lemon-ginger-sparkler',name:'Lemon Ginger Sparkler',emoji:'✨',base:'Alkoholfrei',alcoholFree:true,occasion:['Aperitif','Sommer'],
+   profile:{sweetness:45,acidity:70,bitterness:15,alcoholStrength:0,fruitiness:40,herbSpice:75},
+   description:'Wach und belebend: Ingwersirup mit frischer Zitrone und Mineralwasser. Der würzige Mocktail für alle, die es lieber intensiv mögen.',
+   ingredients:[{name:'Zitronensaft',amount:'4 cl'},{name:'Ingwersirup',amount:'3 cl'},{name:'Mineralwasser',amount:'zum Auffüllen'},{name:'Minze',amount:'optional'}],
+   steps:['Zitronensaft und Ingwersirup in ein eisgefülltes Glas geben.','Mit Mineralwasser auffüllen, umrühren.'],
+   glass:'Highball-Glas',garnish:'Zitronenscheibe, frischer Ingwer'},
+
+  {id:'cucumber-cooler',name:'Cucumber Cooler',emoji:'🥒',base:'Alkoholfrei',alcoholFree:true,occasion:['Sommer','Aperitif'],
+   profile:{sweetness:35,acidity:45,bitterness:10,alcoholStrength:0,fruitiness:25,herbSpice:60},
+   description:'Kühl, grün, meditativ: frische Gurke mit Limette und Holunderblüte. Der Mocktail für heiße Tage, wenn man etwas Besonderes möchte.',
+   ingredients:[{name:'Gurkensaft (frisch gepresst)',amount:'8 cl'},{name:'Limettensaft',amount:'2 cl'},{name:'Holunderblütensirup',amount:'2 cl'},{name:'Tonic Water',amount:'zum Auffüllen'}],
+   steps:['Gurkensaft, Limettensaft und Sirup in ein eisgefülltes Glas geben.','Mit Tonic Water auffüllen.'],
+   glass:'Highball-Glas',garnish:'Gurkenscheibe, Minzzweig'},
+];
+
+/* =============================================================
+   SLIDER CONFIG
+============================================================= */
+const SLIDERS = [
+  {key:'sweetness',      label:'Süße',           left:'herb',       right:'süß'},
+  {key:'acidity',        label:'Säure / Frische', left:'mild',       right:'spritzig-sauer'},
+  {key:'bitterness',     label:'Bitterkeit',      left:'gar nicht',  right:'stark bitter'},
+  {key:'alcoholStrength',label:'Alkoholstärke',   left:'leicht',     right:'stark'},
+  {key:'fruitiness',     label:'Fruchtigkeit',    left:'neutral',    right:'sehr fruchtig'},
+  {key:'herbSpice',      label:'Würze / Kräuter', left:'clean',      right:'würzig/herbal'},
+];
+
+const SPIRITS   = ['Gin','Rum','Vodka','Tequila','Whisky','Brandy','Sekt/Wein','Alkoholfrei'];
+const OCCASIONS = ['Aperitif','Digestif','Sommer','Party'];
+
+/* =============================================================
+   STATE
+============================================================= */
+const S = {
+  sliders:        {sweetness:50,acidity:50,bitterness:50,alcoholStrength:50,fruitiness:50,herbSpice:50},
+  activeSpirits:  [],
+  activeOccasions:[],
+  nonAlcoholic:   false,
+  selected:       null,   // id of cocktail shown in detail
+  results:        [],
+  tab:            'ingredients',
+};
+
+/* =============================================================
+   MATCHING ALGORITHM
+   Weighted Euclidean distance, converted to match percentage.
+   match% = (1 - dist / maxDist) * 100
+============================================================= */
+const WEIGHTS = {sweetness:1.2,acidity:1.1,bitterness:1.1,alcoholStrength:1.0,fruitiness:1.0,herbSpice:0.9};
+const MAX_DIST = Math.sqrt(Object.values(WEIGHTS).reduce((s,w)=>s+(100*w)**2,0));
+
+function matchScore(user, cocktail) {
+  let sq = 0;
+  for (const k in WEIGHTS) {
+    const d = (user[k] - cocktail.profile[k]) * WEIGHTS[k];
+    sq += d*d;
+  }
+  return Math.round((1 - Math.sqrt(sq)/MAX_DIST)*100);
+}
+
+function computeResults() {
+  let pool = DB;
+  if (S.nonAlcoholic)            pool = pool.filter(c=>c.alcoholFree);
+  if (S.activeSpirits.length)    pool = pool.filter(c=>S.activeSpirits.includes(c.base));
+  if (S.activeOccasions.length)  pool = pool.filter(c=>c.occasion.some(o=>S.activeOccasions.includes(o)));
+  return pool
+    .map(c=>({...c, match:matchScore(S.sliders,c)}))
+    .sort((a,b)=>b.match-a.match);
+}
+
+/* =============================================================
+   RENDER – sliders
+============================================================= */
+function renderSliders() {
+  document.getElementById('sliderContainer').innerHTML = SLIDERS.map(s=>{
+    const v = S.sliders[s.key];
+    return `<div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-label">${s.label}</span>
+        <span class="slider-value" id="sv-${s.key}">${v}</span>
+      </div>
+      <input type="range" min="0" max="100" value="${v}"
+        style="--val:${v}%"
+        data-key="${s.key}"
+        oninput="onSlider(this)"/>
+      <div class="slider-sublabels"><span>${s.left}</span><span>${s.right}</span></div>
+    </div>`;
+  }).join('');
+}
+
+/* =============================================================
+   RENDER – filter tags
+============================================================= */
+function renderFilters() {
+  document.getElementById('spiritFilters').innerHTML =
+    SPIRITS.map(sp=>`<span class="tag${S.activeSpirits.includes(sp)?' active':''}" onclick="toggleSpirit('${sp}')">${sp}</span>`).join('');
+  document.getElementById('occasionFilters').innerHTML =
+    OCCASIONS.map(o=>`<span class="tag${S.activeOccasions.includes(o)?' active':''}" onclick="toggleOccasion('${o}')">${o}</span>`).join('');
+}
+
+/* =============================================================
+   RENDER – results
+============================================================= */
+function renderResults() {
+  const res  = S.results;
+  const el   = document.getElementById('resultsContent');
+  const empty= document.getElementById('emptyState');
+
+  if (!res.length) {
+    el.style.display='none';
+    empty.style.display='';
+    empty.innerHTML=`<div class="empty-icon">🔍</div>
+      <div class="empty-title">Keine Treffer</div>
+      <div class="empty-sub">Passe deine Filter an oder setze sie zurück.</div>`;
+    return;
+  }
+
+  empty.style.display='none';
+  el.style.display='';
+
+  const top  = res.find(c=>c.id===S.selected) || res[0];
+  const alts = res.filter(c=>c.id!==top.id).slice(0,4);
+
+  el.innerHTML = `
+    <div class="top-match-card">
+      <div class="top-badge">⭐ BESTER TREFFER</div>
+      <div class="top-inner">
+        <div>
+          <div class="top-name">${top.emoji} ${top.name}</div>
+          <div class="top-meta">
+            <span class="meta-chip">🥃 ${top.base}</span>
+            ${top.occasion.map(o=>`<span class="meta-chip">${o}</span>`).join('')}
+            ${top.alcoholFree?'<span class="meta-chip">🍋 Alkoholfrei</span>':''}
+          </div>
+        </div>
+        <div>
+          <div class="match-pct-big" id="matchBig">${top.match}%</div>
+          <div class="match-pct-label">Match</div>
+          <div class="match-bar-track">
+            <div class="match-bar-fill" id="matchBar" style="width:${top.match}%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="top-desc">${top.description}</div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-tabs">
+        <div class="detail-tab${S.tab==='ingredients'?' active':''}" onclick="switchTab('ingredients')">🧪 Zutaten</div>
+        <div class="detail-tab${S.tab==='steps'?' active':''}" onclick="switchTab('steps')">📋 Zubereitung</div>
+      </div>
+      <div class="detail-content">
+        ${S.tab==='ingredients' ? renderIngredients(top) : renderSteps(top)}
+      </div>
+    </div>
+
+    ${alts.length?`
+    <div class="alt-title">Weitere Empfehlungen</div>
+    <div class="alt-grid">
+      ${alts.map(c=>`
+        <div class="alt-card" onclick="selectCocktail('${c.id}')">
+          <div class="alt-emoji">${c.emoji}</div>
+          <div class="alt-info">
+            <div class="alt-name">${c.name}</div>
+            <div class="alt-sub">${c.base} · ${c.occasion.join(', ')}</div>
+          </div>
+          <div>
+            <div class="alt-pct">${c.match}%</div>
+            <div class="alt-pct-lbl">Match</div>
+          </div>
+        </div>`).join('')}
+    </div>`:''}
+  `;
+}
+
+function renderIngredients(c) {
+  return `
+    <ul class="ingredient-list">
+      ${c.ingredients.map(i=>`
+        <li class="ingredient-item">
+          <span class="ingredient-name">${i.name}</span>
+          <span class="ingredient-amount">${i.amount}</span>
+        </li>`).join('')}
+    </ul>
+    <div class="glass-garnish">
+      <div class="gg-item"><div class="gg-label">🥃 Glas</div><div class="gg-val">${c.glass}</div></div>
+      <div class="gg-item"><div class="gg-label">🌿 Garnitur</div><div class="gg-val">${c.garnish}</div></div>
+    </div>`;
+}
+
+function renderSteps(c) {
+  return `<ol class="steps-list">
+    ${c.steps.map((s,i)=>`
+      <li class="step-item">
+        <div class="step-num">${i+1}</div>
+        <div class="step-text">${s}</div>
+      </li>`).join('')}
+  </ol>`;
+}
+
+/* =============================================================
+   EVENT HANDLERS
+============================================================= */
+function onSlider(el) {
+  const v = +el.value;
+  S.sliders[el.dataset.key] = v;
+  el.style.setProperty('--val', v+'%');
+  document.getElementById('sv-'+el.dataset.key).textContent = v;
+  run();
+}
+
+function toggleSpirit(sp) {
+  const i = S.activeSpirits.indexOf(sp);
+  i>=0 ? S.activeSpirits.splice(i,1) : S.activeSpirits.push(sp);
+  renderFilters();
+  run();
+}
+
+function toggleOccasion(o) {
+  const i = S.activeOccasions.indexOf(o);
+  i>=0 ? S.activeOccasions.splice(i,1) : S.activeOccasions.push(o);
+  renderFilters();
+  run();
+}
+
+document.getElementById('nonAlcoholicToggle').addEventListener('change',function(){
+  S.nonAlcoholic = this.checked;
+  if (S.nonAlcoholic) { S.activeSpirits=[]; renderFilters(); }
+  run();
+});
+
+document.getElementById('findBtn').addEventListener('click', run);
+
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  S.sliders = {sweetness:50,acidity:50,bitterness:50,alcoholStrength:50,fruitiness:50,herbSpice:50};
+  S.activeSpirits=[]; S.activeOccasions=[]; S.nonAlcoholic=false; S.selected=null;
+  document.getElementById('nonAlcoholicToggle').checked=false;
+  renderSliders(); renderFilters(); run();
+});
+
+function selectCocktail(id) {
+  S.selected=id; S.tab='ingredients';
+  renderResults();
+  document.getElementById('resultsContent').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function switchTab(t) { S.tab=t; renderResults(); }
+
+/* =============================================================
+   CORE
+============================================================= */
+function run() {
+  S.results = computeResults();
+  if (S.selected && !S.results.find(c=>c.id===S.selected)) S.selected=null;
+  renderResults();
+}
+
+/* =============================================================
+   INIT
+============================================================= */
+renderSliders();
+renderFilters();
+run();
+</script>
+</body>
+</html>
