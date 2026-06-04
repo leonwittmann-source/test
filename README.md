@@ -1,1 +1,995 @@
-test
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Cocktail Matcher</title>
+<style>
+/* ============================================================
+   COCKTAIL MATCHER — eigener Stil
+   Warmes Creme-Papier · Clay-/Terrakotta-Akzent · ruhige,
+   editoriale Typografie. Jeder Cocktail bringt seine eigene
+   Farbe als sanften Wash + Akzent (kein satter Vollbild-Look).
+   Schrift: Anthropic Sans (mit System-Fallback).
+============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sans:'Anthropic Sans','Styrene B','Styrene A',ui-sans-serif,-apple-system,
+         BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  /* warme Papier-Palette */
+  --cream:#F0EEE6;--paper:#FAF9F5;--ink:#1A1915;
+  --ink-2:#5C574E;--ink-3:#928B7E;--line:#E2DDD0;--line-2:#D4CDBC;
+  /* festes Marken-Clay (App-Chrome) */
+  --clay:#CC785C;--clay-dk:#B45D3E;--clay-soft:#EBD3C6;
+  /* pro-Cocktail (per JS gesetzt) */
+  --accent:#CC785C;--hero:#E9E2D6;--wash:#F0EEE6;--hero-line:#D9CFBE;
+  --r:14px;--r-lg:26px;--max-w:1140px;--nav-h:62px;
+  --t:.3s cubic-bezier(.4,0,.2,1);
+  --t-mid:.5s cubic-bezier(.4,0,.2,1);
+  --t-col:1s cubic-bezier(.4,0,.2,1);   /* Farbwechsel */
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);color:var(--ink);background:var(--wash);
+  min-height:100vh;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  letter-spacing:-.005em;transition:background-color var(--t-col)}
+
+/* ---- NAV ---- */
+nav{position:fixed;top:0;left:0;right:0;height:var(--nav-h);z-index:100;
+  display:flex;align-items:center;gap:2.2rem;padding:0 2rem;
+  background:rgba(240,238,230,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:.55rem;font-weight:600;font-size:.98rem;letter-spacing:-.01em;flex-shrink:0}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--clay);transition:background-color var(--t-col)}
+.nav-links{display:flex;gap:.2rem;margin-left:auto}
+.nav-link{background:none;border:none;font-family:var(--sans);font-size:.88rem;font-weight:500;
+  color:var(--ink-3);padding:.45rem .85rem;border-radius:9px;cursor:pointer;transition:color var(--t),background var(--t)}
+.nav-link:hover{color:var(--ink-2);background:rgba(0,0,0,.035)}
+.nav-link.active{color:var(--clay-dk);background:var(--clay-soft)}
+
+/* ---- APP / PAGES ---- */
+#app{transition:opacity var(--t-mid)}
+.page{display:none}
+.page.active{display:block;animation:fadeUp var(--t-mid) ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.container{max-width:var(--max-w);margin:0 auto;padding:calc(var(--nav-h) + 3rem) 1.6rem 5rem}
+
+/* ---- Bausteine ---- */
+.eyebrow{font-size:.66rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.page-head{margin-bottom:2.4rem;max-width:48ch}
+.page-head h1{font-weight:600;font-size:clamp(1.9rem,4.5vw,2.7rem);letter-spacing:-.025em;line-height:1.05;margin:.55rem 0 .5rem}
+.page-head p{font-size:.96rem;color:var(--ink-2)}
+.label{font-size:.66rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin-bottom:1.1rem}
+
+/* ---- MATCHER LAYOUT ---- */
+.matcher-grid{display:grid;grid-template-columns:300px 1fr;gap:2.6rem;align-items:start}
+@media(max-width:840px){.matcher-grid{grid-template-columns:1fr;gap:2.2rem}}
+.block{margin-bottom:2rem}
+
+/* ---- SLIDERS ---- */
+.sliders{display:flex;flex-direction:column;gap:1.05rem}
+.slider-row{display:flex;flex-direction:column;gap:.4rem}
+.slider-top{display:flex;justify-content:space-between;align-items:baseline}
+.slider-lbl{font-size:.86rem;font-weight:500;color:var(--ink)}
+.slider-val{font-size:.9rem;font-weight:600;color:var(--clay-dk);min-width:16px;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:99px;outline:none;cursor:pointer;
+  background:linear-gradient(to right,var(--clay) 0%,var(--clay) var(--val,44%),var(--line-2) var(--val,44%),var(--line-2) 100%);
+  transition:background var(--t-mid)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--paper);
+  border:2px solid var(--clay);box-shadow:0 1px 4px rgba(120,70,40,.18);transition:transform var(--t),box-shadow var(--t)}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.16);box-shadow:0 2px 9px rgba(120,70,40,.28)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border:2px solid var(--clay);border-radius:50%;background:var(--paper);cursor:pointer}
+
+/* ---- HEXAGON ---- */
+.hex-wrap svg{width:100%;max-width:300px;display:block;margin:0 auto;overflow:visible}
+.hex-grid{fill:none;stroke:var(--line-2);stroke-width:.8}
+.hex-axis{stroke:var(--line-2);stroke-width:.8}
+.hex-poly{transition:d var(--t-mid),stroke var(--t-col)}
+.hex-user{fill:rgba(26,25,21,.07);stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
+.hex-cocktail{fill:none;stroke:var(--accent);stroke-width:1.8;stroke-dasharray:4 3.5;stroke-linejoin:round}
+.hex-label{font-family:var(--sans);font-size:10px;font-weight:500;fill:var(--ink-3)}
+.hex-legend{display:flex;gap:1.5rem;justify-content:center;margin-top:.7rem;font-size:.68rem;color:var(--ink-3)}
+.hex-legend span{display:flex;align-items:center;gap:.4rem}
+.hex-key{width:14px;height:0;border-top:2px solid var(--ink)}
+.hex-key.dash{border-top:2px dashed var(--accent);transition:border-color var(--t-col)}
+
+/* ---- TAGS / FILTER ---- */
+.tags{display:flex;flex-wrap:wrap;gap:.4rem}
+.tag{padding:.32rem .8rem;border-radius:99px;border:1px solid var(--line-2);background:transparent;
+  color:var(--ink-2);font-size:.78rem;font-weight:500;cursor:pointer;user-select:none;
+  transition:color var(--t),border-color var(--t),background var(--t)}
+.tag:hover{border-color:var(--clay);color:var(--clay-dk)}
+.tag.active{background:var(--clay);border-color:var(--clay);color:var(--paper)}
+/* statische Info-Chips (Hero/Overlay) – nicht klickbar */
+.chip{display:inline-block;padding:.26rem .7rem;border-radius:99px;border:1px solid var(--hero-line);
+  color:var(--ink-2);font-size:.74rem;font-weight:500;transition:border-color var(--t-col)}
+
+/* ---- OPTIONEN (Toggle-Karten) ---- */
+.opt-group{display:flex;flex-direction:column;gap:.6rem}
+.opt{display:block;cursor:pointer}
+.opt input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.opt-box{display:flex;align-items:center;gap:.75rem;padding:.75rem .9rem;border:1.5px solid var(--line-2);
+  border-radius:13px;background:var(--paper);transition:border-color var(--t),background var(--t),box-shadow var(--t)}
+.opt:hover .opt-box{border-color:var(--clay)}
+.opt-mark{width:21px;height:21px;border-radius:7px;border:1.5px solid var(--line-2);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:background var(--t),border-color var(--t)}
+.opt-mark::after{content:'';width:9px;height:5px;border-left:2px solid var(--paper);border-bottom:2px solid var(--paper);
+  transform:rotate(-45deg) translate(0,-1px) scale(0);transition:transform var(--t)}
+.opt-text{font-size:.9rem;font-weight:500;color:var(--ink);line-height:1.25}
+.opt-text small{display:block;font-size:.72rem;font-weight:400;color:var(--ink-3);margin-top:.12rem}
+.opt input:checked+.opt-box{border-color:var(--clay);background:var(--clay-soft);box-shadow:0 3px 12px -5px rgba(180,93,62,.55)}
+.opt input:checked+.opt-box .opt-mark{background:var(--clay);border-color:var(--clay)}
+.opt input:checked+.opt-box .opt-mark::after{transform:rotate(-45deg) translate(0,-1px) scale(1)}
+.opt input:checked+.opt-box .opt-text{color:var(--clay-dk)}
+.opt input:focus-visible+.opt-box{box-shadow:0 0 0 3px var(--clay-soft)}
+
+/* ---- BUTTONS / LINKS ---- */
+.btn-ghost{background:transparent;color:var(--ink-2);border:1px solid var(--line-2);font-family:var(--sans);
+  font-size:.82rem;font-weight:500;padding:.55rem 1.1rem;border-radius:99px;cursor:pointer;transition:border-color var(--t),color var(--t)}
+.btn-ghost:hover{border-color:var(--clay);color:var(--clay-dk)}
+.link-btn{background:none;border:none;color:var(--clay-dk);font-family:var(--sans);font-size:.8rem;font-weight:500;
+  cursor:pointer;transition:opacity var(--t)}
+.link-btn:hover{opacity:.65}
+.hr{height:1px;background:var(--line);margin:1.8rem 0}
+
+/* ============================================================
+   HERO-ERGEBNIS — eine ruhige, cocktailfarbene Fläche
+============================================================ */
+.hero{background:var(--hero);border-radius:var(--r-lg);padding:2.2rem 2.3rem;
+  box-shadow:0 1px 2px rgba(80,50,30,.05),0 12px 40px -16px rgba(80,50,30,.18);
+  transition:background-color var(--t-col),box-shadow var(--t-col)}
+.result-meta{font-size:.66rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin-bottom:1.2rem}
+.top-block{transition:opacity var(--t-mid)}
+.top-block.swap{animation:swapIn var(--t-mid) ease}
+@keyframes swapIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:1.5rem;flex-wrap:wrap}
+.top-name{font-weight:600;font-size:clamp(1.9rem,4.5vw,2.9rem);line-height:1.05;letter-spacing:-.03em;max-width:15ch}
+.match-block{text-align:right;flex-shrink:0;min-width:96px}
+.match-num{font-weight:600;font-size:2.9rem;line-height:1;letter-spacing:-.03em;color:var(--accent);
+  font-variant-numeric:tabular-nums;transition:color var(--t-col)}
+.match-unit{font-size:1.2rem}
+.match-cap{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-top:.3rem}
+.match-bar{height:3px;background:var(--hero-line);border-radius:99px;overflow:hidden;margin-top:.6rem}
+.match-fill{height:100%;background:var(--accent);border-radius:99px;width:0;transition:width var(--t-mid),background-color var(--t-col)}
+.top-chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:1rem}
+.top-desc{font-size:.98rem;color:var(--ink-2);line-height:1.65;margin-top:1.2rem;max-width:56ch}
+
+/* interne Tabs: Zutaten / Zubereitung */
+.tabs{display:flex;gap:1.6rem;margin-top:2rem;border-bottom:1px solid var(--hero-line);transition:border-color var(--t-col)}
+.tab{background:none;border:none;font-family:var(--sans);font-size:.82rem;font-weight:600;letter-spacing:.02em;
+  color:var(--ink-3);padding:0 0 .75rem;cursor:pointer;position:relative;transition:color var(--t)}
+.tab:hover{color:var(--ink-2)}
+.tab.active{color:var(--ink)}
+.tab::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--accent);
+  transform:scaleX(0);transform-origin:left;transition:transform var(--t-mid),background-color var(--t-col)}
+.tab.active::after{transform:scaleX(1)}
+.tab-content{padding-top:1.5rem;transition:opacity var(--t-mid),transform var(--t-mid)}
+.tab-content.fade{opacity:0;transform:translateY(6px)}
+
+.ing-list{list-style:none}
+.ing-row{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.5rem 0;border-bottom:1px solid var(--hero-line);transition:border-color var(--t-col)}
+.ing-row:last-child{border-bottom:none}
+.ing-name{font-size:.92rem;color:var(--ink)}
+.ing-amt{font-size:.82rem;color:var(--ink-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.gg-row{display:flex;gap:2.2rem;margin-top:1.3rem;flex-wrap:wrap}
+.gg-lbl{font-size:.62rem;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.25rem}
+.gg-val{font-size:.9rem;color:var(--ink)}
+.steps{list-style:none;display:flex;flex-direction:column;gap:.95rem;counter-reset:s}
+.step{display:flex;gap:.95rem;align-items:flex-start}
+.step-n{counter-increment:s;font-size:.82rem;font-weight:600;color:var(--accent);min-width:1.5rem;line-height:1.5;
+  font-variant-numeric:tabular-nums;transition:color var(--t-col)}
+.step-n::before{content:counter(s,decimal-leading-zero)}
+.step-t{font-size:.92rem;color:var(--ink-2);line-height:1.6}
+
+/* Alternativen (auf Papier, unter dem Hero) */
+.alts-wrap{margin-top:2.4rem}
+.alts-head{font-size:.66rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.3rem}
+.alts{display:flex;flex-direction:column}
+.alt{display:flex;align-items:center;gap:1rem;padding:.9rem 0;border-bottom:1px solid var(--line);
+  cursor:pointer;transition:padding-left var(--t)}
+.alt:last-child{border-bottom:none}
+.alt:hover{padding-left:.5rem}
+.alt-sw{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--c,var(--clay))}
+.alt-info{flex:1;min-width:0}
+.alt-name{font-size:1.02rem;font-weight:600;letter-spacing:-.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alt-sub{font-size:.74rem;color:var(--ink-3);margin-top:.05rem}
+.alt-right{text-align:right;min-width:96px}
+.alt-pct{font-size:.92rem;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.alt-mini{height:3px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:.4rem;width:84px;margin-left:auto}
+.alt-mini-fill{height:100%;border-radius:99px;background:var(--c,var(--clay));transition:width var(--t-mid)}
+
+.empty{padding:4rem 2rem;text-align:center;color:var(--ink-3)}
+.empty .e-t{font-size:1.4rem;font-weight:600;color:var(--ink-2);margin-bottom:.4rem;letter-spacing:-.02em}
+
+/* ============================================================
+   DATABASE — Kartenraster mit eigener Cocktail-Farbe
+============================================================ */
+.db-controls{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1.6rem}
+.search{position:relative;flex:1;min-width:200px}
+.search svg{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:var(--ink-3);pointer-events:none}
+.search input{width:100%;padding:.62rem .9rem .62rem 2.3rem;background:var(--paper);border:1px solid var(--line-2);
+  border-radius:99px;font-family:var(--sans);font-size:.9rem;color:var(--ink);outline:none;transition:border-color var(--t)}
+.search input::placeholder{color:var(--ink-3)}
+.search input:focus{border-color:var(--clay)}
+.db-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:1rem}
+@media(max-width:560px){.db-grid{grid-template-columns:1fr}}
+.db-card{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);
+  padding:1.3rem 1.3rem 1.4rem;cursor:pointer;overflow:hidden;transition:transform var(--t),box-shadow var(--t),border-color var(--t);animation:fadeUp var(--t-mid) ease}
+.db-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--c,var(--clay))}
+.db-card:hover{transform:translateY(-3px);box-shadow:0 14px 34px -18px rgba(80,50,30,.4);border-color:var(--line-2)}
+.db-card .name{font-size:1.18rem;font-weight:600;letter-spacing:-.02em;margin:.4rem 0 .6rem;line-height:1.15}
+.db-card .meta{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.7rem}
+.db-card .desc{font-size:.82rem;color:var(--ink-3);line-height:1.55;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.db-empty{grid-column:1/-1;padding:3rem 0;text-align:center;color:var(--ink-3)}
+
+/* ============================================================
+   PANTRY
+============================================================ */
+.pantry-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start}
+@media(max-width:760px){.pantry-grid{grid-template-columns:1fr;gap:2.4rem}}
+.pantry-bar{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1rem}
+.pantry-count{font-size:.78rem;color:var(--ink-3)}
+.ing-pick-list{display:flex;flex-direction:column;max-height:64vh;overflow-y:auto;padding-right:.4rem}
+.ing-pick{display:flex;align-items:center;gap:.8rem;padding:.5rem 0;border-bottom:1px solid var(--line);cursor:pointer}
+.ing-pick:last-child{border-bottom:none}
+.ing-pick input{appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1px solid var(--line-2);border-radius:6px;
+  cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background var(--t),border-color var(--t)}
+.ing-pick input:checked{background:var(--clay);border-color:var(--clay)}
+.ing-pick input:checked::after{content:'';width:9px;height:5px;border-left:1.7px solid var(--paper);border-bottom:1.7px solid var(--paper);transform:rotate(-45deg) translate(0,-1px)}
+.ing-pick span{font-size:.88rem;color:var(--ink)}
+.pantry-results{position:sticky;top:calc(var(--nav-h) + 1.6rem)}
+.make-divider{font-size:.64rem;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  margin:1.6rem 0 .5rem;padding-top:1rem;border-top:1px solid var(--line)}
+.make-divider:first-child{border-top:none;padding-top:0;margin-top:0}
+.make-row{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--line);
+  cursor:pointer;transition:padding-left var(--t)}
+.make-row:hover{padding-left:.5rem}
+.make-name{font-size:1.02rem;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+.make-sub{font-size:.74rem;color:var(--ink-3)}
+.make-miss{font-size:.74rem;color:var(--ink-3);font-style:italic;text-align:right}
+.pantry-hint{font-size:.88rem;color:var(--ink-3);padding:.5rem 0}
+
+/* ============================================================
+   DETAIL-OVERLAY — heller Cocktail-Wash
+============================================================ */
+.overlay{position:fixed;inset:0;z-index:200;overflow-y:auto;background:var(--hero);
+  opacity:0;visibility:hidden;transition:opacity var(--t-mid),visibility var(--t-mid),background-color var(--t-col)}
+.overlay.open{opacity:1;visibility:visible}
+.overlay-inner{max-width:600px;margin:0 auto;padding:4.5rem 1.6rem 5rem;transform:translateY(16px);transition:transform var(--t-mid)}
+.overlay.open .overlay-inner{transform:none}
+.overlay-close{position:fixed;top:1.2rem;right:1.5rem;z-index:2;width:40px;height:40px;border-radius:99px;
+  background:var(--paper);border:1px solid var(--hero-line);color:var(--ink);font-size:1.05rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:transform var(--t),background var(--t)}
+.overlay-close:hover{transform:rotate(90deg)}
+.overlay-name{font-weight:600;font-size:clamp(2.1rem,6vw,3.1rem);line-height:1.04;letter-spacing:-.03em;margin:.7rem 0 .8rem}
+.overlay-desc{font-size:.98rem;color:var(--ink-2);line-height:1.65;margin:1.1rem 0 1.6rem}
+
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:var(--clay)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand"><span class="dot"></span>Cocktail Matcher</div>
+  <div class="nav-links">
+    <button class="nav-link active" data-page="matcher" onclick="goto('matcher')">Matcher</button>
+    <button class="nav-link" data-page="database" onclick="goto('database')">Database</button>
+    <button class="nav-link" data-page="pantry" onclick="goto('pantry')">Pantry</button>
+  </div>
+</nav>
+
+<main id="app">
+
+  <!-- ===================== MATCHER ===================== -->
+  <section id="page-matcher" class="page active">
+    <div class="container">
+      <div class="matcher-grid">
+
+        <!-- Steuerung -->
+        <div class="controls">
+          <div class="block">
+            <div class="label">Geschmacksprofil · 1–10</div>
+            <div class="sliders" id="sliderContainer"></div>
+          </div>
+          <div class="block"><div class="hex-wrap" id="hexContainer"></div></div>
+          <div class="block">
+            <div class="label">Optionen</div>
+            <div class="opt-group">
+              <label class="opt">
+                <input type="checkbox" id="nonAlcTgl"/>
+                <span class="opt-box"><span class="opt-mark"></span><span class="opt-text">Nur alkoholfrei</span></span>
+              </label>
+              <label class="opt">
+                <input type="checkbox" id="pantryTgl"/>
+                <span class="opt-box"><span class="opt-mark"></span><span class="opt-text">Nur mit meiner Pantry<small id="pantryMini">Pantry leer</small></span></span>
+              </label>
+            </div>
+            <div style="margin-top:1.2rem;display:flex;gap:1.2rem;align-items:center">
+              <button class="btn-ghost" id="resetBtn">Zurücksetzen</button>
+              <button class="link-btn" onclick="goto('pantry')">Pantry bearbeiten</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ergebnis -->
+        <div class="results" id="resultsArea"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== DATABASE ===================== -->
+  <section id="page-database" class="page">
+    <div class="container">
+      <div class="page-head">
+        <div class="eyebrow">Alle Rezepte</div>
+        <h1>Database</h1>
+        <p>Die vollständige Sammlung — suchen, nach Spirituose filtern, Details öffnen.</p>
+      </div>
+      <div class="db-controls">
+        <div class="search">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6.5" cy="6.5" r="5"/><path d="M10.5 10.5l4 4"/></svg>
+          <input type="text" id="dbSearch" placeholder="Cocktail suchen…" oninput="renderDatabase()"/>
+        </div>
+        <div class="tags" id="dbSpiritFilters"></div>
+      </div>
+      <div class="db-grid" id="dbGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===================== PANTRY ===================== -->
+  <section id="page-pantry" class="page">
+    <div class="container">
+      <div class="page-head">
+        <div class="eyebrow">Deine Zutaten</div>
+        <h1>Pantry</h1>
+        <p>Wähle, was du zuhause hast. Aktiviere im Matcher „Nur mit meiner Pantry", um nur machbare Cocktails zu sehen.</p>
+      </div>
+      <div class="pantry-grid">
+        <div>
+          <div class="pantry-bar">
+            <div class="label" style="margin:0">Zutaten</div>
+            <div style="display:flex;gap:1.2rem">
+              <button class="link-btn" onclick="selectAllIngredients()">Alle</button>
+              <button class="link-btn" onclick="clearIngredients()">Keine</button>
+            </div>
+          </div>
+          <div class="search" style="margin-bottom:.6rem">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6.5" cy="6.5" r="5"/><path d="M10.5 10.5l4 4"/></svg>
+            <input type="text" id="pantrySearch" placeholder="Zutat suchen…" oninput="renderPantryIngredients()"/>
+          </div>
+          <div class="ing-pick-list" id="ingPickList"></div>
+        </div>
+        <div class="pantry-results">
+          <div class="pantry-bar">
+            <div class="label" style="margin:0">Machbar</div>
+            <div class="pantry-count" id="pantryCount"></div>
+          </div>
+          <div id="pantryResults"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===================== DETAIL-OVERLAY ===================== -->
+<div class="overlay" id="overlay">
+  <button class="overlay-close" onclick="closeOverlay()" aria-label="Schließen">&#x2715;</button>
+  <div class="overlay-inner" id="overlayInner"></div>
+</div>
+
+<script>
+/* ================================================================
+   COCKTAIL-DATENBANK
+   Profil 0–100: sweetness, acidity, bitterness, alcoholStrength,
+   fruitiness, herbSpice. Neuen Cocktail am Ende anhängen.
+================================================================ */
+const DB=[
+/* ── TEQUILA ── */
+{id:'margarita',name:'Margarita',base:'Tequila',alcoholFree:false,occasion:['Sommer','Party'],
+ profile:{sweetness:35,acidity:75,bitterness:10,alcoholStrength:65,fruitiness:60,herbSpice:20},
+ description:'Der Klassiker aus Mexiko — ein erfrischendes Spiel aus Limetten-Säure, Salz und Tequila.',
+ ingredients:[{name:'Tequila Blanco',amount:'5 cl'},{name:'Triple Sec',amount:'2 cl'},{name:'Limettensaft',amount:'2 cl'},{name:'Salzrand',amount:'nach Wunsch'}],
+ steps:['Glasrand mit Limette benetzen und in Salz tauchen.','Alle Zutaten mit Eis in den Shaker geben.','Kräftig 15 Sekunden schütteln.','Doppelt in ein eisgefülltes Glas abseihen.'],
+ glass:'Margarita- oder Rocks-Glas',garnish:'Limettenscheibe, Salzrand'},
+
+{id:'paloma',name:'Paloma',base:'Tequila',alcoholFree:false,occasion:['Sommer','Aperitif'],
+ profile:{sweetness:40,acidity:65,bitterness:20,alcoholStrength:45,fruitiness:70,herbSpice:10},
+ description:'Mexikos beliebtester Tequila-Drink — leichter als die Margarita, mit bitterer Grapefruit-Fruchtigkeit.',
+ ingredients:[{name:'Tequila Blanco',amount:'5 cl'},{name:'Limettensaft',amount:'1.5 cl'},{name:'Grapefruit-Limonade',amount:'12 cl'},{name:'Prise Salz',amount:'1 Prise'}],
+ steps:['Tequila und Limettensaft in ein eisgefülltes Highball-Glas geben.','Mit Grapefruit-Limonade auffüllen.','Leicht umrühren, mit Salz abschmecken.'],
+ glass:'Highball-Glas',garnish:'Grapefruitscheibe'},
+
+{id:'tequila-sunrise',name:'Tequila Sunrise',base:'Tequila',alcoholFree:false,occasion:['Sommer','Party'],
+ profile:{sweetness:70,acidity:30,bitterness:5,alcoholStrength:40,fruitiness:80,herbSpice:5},
+ description:'Grenadine sinkt langsam durch den Orangensaft und erzeugt einen farbenprächtigen Sonnenaufgang. Fruchtig-süß.',
+ ingredients:[{name:'Tequila',amount:'4.5 cl'},{name:'Orangensaft',amount:'9 cl'},{name:'Grenadine',amount:'1.5 cl'}],
+ steps:['Glas mit Eiswürfeln füllen.','Tequila und Orangensaft hineingeben.','Grenadine langsam am Glasrand eingießen — nicht umrühren.'],
+ glass:'Highball-Glas',garnish:'Orangenscheibe, Cocktailkirsche'},
+
+{id:'spicy-margarita',name:'Spicy Margarita',base:'Tequila',alcoholFree:false,occasion:['Party','Sommer'],
+ profile:{sweetness:25,acidity:70,bitterness:15,alcoholStrength:65,fruitiness:45,herbSpice:85},
+ description:'Jalapeño-Schärfe trifft auf spritzige Limette — aufregend für Liebhaber intensiver Aromen.',
+ ingredients:[{name:'Tequila Blanco',amount:'5 cl'},{name:'Triple Sec',amount:'2 cl'},{name:'Limettensaft',amount:'2.5 cl'},{name:'Jalapeño-Scheiben',amount:'3–4 Stück'},{name:'Agavensirup',amount:'1 cl'}],
+ steps:['Jalapeños im Shaker muddlen.','Restliche Zutaten und Eis hinzugeben.','Kräftig schütteln und doppelt abseihen.'],
+ glass:'Rocks-Glas',garnish:'Jalapeño-Scheibe, Limettenspalte'},
+
+{id:'el-diablo',name:'El Diablo',base:'Tequila',alcoholFree:false,occasion:['Party','Sommer'],
+ profile:{sweetness:45,acidity:55,bitterness:20,alcoholStrength:40,fruitiness:65,herbSpice:65},
+ description:'Tequila trifft auf Cassis und Ingwerbier — würzig, fruchtig, aufregend tief.',
+ ingredients:[{name:'Tequila',amount:'4.5 cl'},{name:'Crème de Cassis',amount:'1.5 cl'},{name:'Limettensaft',amount:'1.5 cl'},{name:'Ginger Beer',amount:'zum Auffüllen'}],
+ steps:['Tequila, Cassis und Limettensaft in ein Glas mit Eis geben.','Mit Ginger Beer auffüllen, sanft umrühren.'],
+ glass:'Highball-Glas',garnish:'Limettenspalte'},
+
+{id:'mezcal-negroni',name:'Mezcal Negroni',base:'Tequila',alcoholFree:false,occasion:['Aperitif','Digestif'],
+ profile:{sweetness:25,acidity:10,bitterness:80,alcoholStrength:78,fruitiness:10,herbSpice:85},
+ description:'Mezcal ersetzt den Gin und gibt dem Negroni eine faszinierende Rauchtiefe. Nichts für schwache Nerven.',
+ ingredients:[{name:'Mezcal',amount:'3 cl'},{name:'Campari',amount:'3 cl'},{name:'Süßer Wermut',amount:'3 cl'}],
+ steps:['Alle Zutaten mit Eis rühren.','In ein Rocks-Glas mit großem Eiswürfel abseihen.'],
+ glass:'Rocks-Glas',garnish:'Orangenzeste'},
+
+/* ── GIN ── */
+{id:'gin-tonic',name:'Gin & Tonic',base:'Gin',alcoholFree:false,occasion:['Aperitif','Sommer'],
+ profile:{sweetness:20,acidity:25,bitterness:55,alcoholStrength:45,fruitiness:20,herbSpice:70},
+ description:'Der Klassiker schlechthin — herb-botanisch, mit dem charakteristischen Tonic-Bitter.',
+ ingredients:[{name:'Gin',amount:'5 cl'},{name:'Tonic Water',amount:'15 cl'}],
+ steps:['Ballon-Glas mit großen Eiswürfeln füllen.','Gin über das Eis gießen.','Tonic Water langsam am Glasrand aufgießen.','Einmal kurz umrühren.'],
+ glass:'Ballon-Glas',garnish:'Gurke, Limette oder Wacholder'},
+
+{id:'negroni',name:'Negroni',base:'Gin',alcoholFree:false,occasion:['Aperitif','Digestif'],
+ profile:{sweetness:30,acidity:15,bitterness:80,alcoholStrength:75,fruitiness:15,herbSpice:75},
+ description:'Italiens Aperitivo der Stunde — ein elegantes Trio aus Gin, Campari und süßem Wermut. Komplex, bitter, unwiderstehlich.',
+ ingredients:[{name:'Gin',amount:'3 cl'},{name:'Campari',amount:'3 cl'},{name:'Roter Wermut',amount:'3 cl'}],
+ steps:['Alle Zutaten mit Eis in ein Rührglas geben.','Etwa 25 Sekunden rühren.','In ein Rocks-Glas mit großem Eiswürfel abseihen.'],
+ glass:'Rocks-Glas',garnish:'Orangenscheibe'},
+
+{id:'tom-collins',name:'Tom Collins',base:'Gin',alcoholFree:false,occasion:['Sommer','Aperitif'],
+ profile:{sweetness:45,acidity:65,bitterness:20,alcoholStrength:40,fruitiness:45,herbSpice:40},
+ description:'Zeitloser Longdrink — Gin mit Zitronensaft, Zucker und Soda. Erfrischend leicht und wunderbar ausbalanciert.',
+ ingredients:[{name:'Gin',amount:'4.5 cl'},{name:'Zitronensaft',amount:'3 cl'},{name:'Zuckersirup',amount:'1.5 cl'},{name:'Sodawasser',amount:'zum Auffüllen'}],
+ steps:['Gin, Zitronensaft und Sirup mit Eis shaken.','In ein Glas mit Eis abseihen.','Mit Sodawasser auffüllen.'],
+ glass:'Collins-Glas',garnish:'Zitronenscheibe'},
+
+{id:'french-75',name:'French 75',base:'Gin',alcoholFree:false,occasion:['Aperitif','Party'],
+ profile:{sweetness:40,acidity:60,bitterness:15,alcoholStrength:55,fruitiness:40,herbSpice:30},
+ description:'Elegant und prickelnd — Gin und Champagner in einer glücklichen Liaison.',
+ ingredients:[{name:'Gin',amount:'3 cl'},{name:'Zitronensaft',amount:'1.5 cl'},{name:'Zuckersirup',amount:'1 cl'},{name:'Champagner',amount:'ca. 8 cl'}],
+ steps:['Gin, Zitronensaft und Sirup mit Eis shaken.','In eine Champagnerflöte abseihen.','Mit Champagner auffüllen.'],
+ glass:'Champagnerflöte',garnish:'Zitronenzeste'},
+
+{id:'bees-knees',name:"Bee's Knees",base:'Gin',alcoholFree:false,occasion:['Aperitif','Party'],
+ profile:{sweetness:55,acidity:60,bitterness:15,alcoholStrength:55,fruitiness:35,herbSpice:35},
+ description:'Prohibition-Klassiker: Honigsirup mildert die Zitrusschärfe auf besondere Art. Angenehm und komplex.',
+ ingredients:[{name:'Gin',amount:'4.5 cl'},{name:'Zitronensaft',amount:'2 cl'},{name:'Honigsirup',amount:'2 cl'}],
+ steps:['Alle Zutaten mit Eis shaken.','Doppelt in eine gekühlte Cocktailschale abseihen.'],
+ glass:'Cocktailschale',garnish:'Zitronenzeste'},
+
+{id:'bramble',name:'Bramble',base:'Gin',alcoholFree:false,occasion:['Party','Sommer'],
+ profile:{sweetness:55,acidity:65,bitterness:15,alcoholStrength:50,fruitiness:80,herbSpice:25},
+ description:'Britischer Klassiker: Gin mit Brombeerlikör über crushed Ice — eine Explosion aus Frucht und Frische.',
+ ingredients:[{name:'Gin',amount:'4.5 cl'},{name:'Zitronensaft',amount:'2 cl'},{name:'Zuckersirup',amount:'1 cl'},{name:'Crème de Mûre',amount:'1.5 cl'}],
+ steps:['Gin, Zitronensaft und Sirup shaken.','Über crushed Ice in ein Rocks-Glas abseihen.','Crème de Mûre langsam obenauf gießen.'],
+ glass:'Rocks-Glas',garnish:'Brombeeren, Zitronenscheibe'},
+
+{id:'aviation',name:'Aviation',base:'Gin',alcoholFree:false,occasion:['Aperitif','Party'],
+ profile:{sweetness:45,acidity:55,bitterness:20,alcoholStrength:60,fruitiness:45,herbSpice:40},
+ description:'Ein blumig-violetter Traum aus der Vorprohibitions-Ära. Crème de Violette gibt die charakteristische Farbe.',
+ ingredients:[{name:'Gin',amount:'4.5 cl'},{name:'Maraschino',amount:'1.5 cl'},{name:'Crème de Violette',amount:'0.75 cl'},{name:'Zitronensaft',amount:'2 cl'}],
+ steps:['Alle Zutaten mit Eis shaken.','In eine gekühlte Cocktailschale abseihen.'],
+ glass:'Cocktailschale',garnish:'Cocktailkirsche'},
+
+/* ── RUM ── */
+{id:'mojito',name:'Mojito',base:'Rum',alcoholFree:false,occasion:['Sommer','Party'],
+ profile:{sweetness:55,acidity:65,bitterness:10,alcoholStrength:35,fruitiness:40,herbSpice:70},
+ description:'Kubas Nationalcocktail — frische Minze, Limette und Rum. Sofortiges Sommerfeeling.',
+ ingredients:[{name:'Weißer Rum',amount:'4.5 cl'},{name:'Limettensaft',amount:'3 cl'},{name:'Zuckersirup',amount:'2 cl'},{name:'Minzblätter',amount:'8–10 Blätter'},{name:'Sodawasser',amount:'zum Auffüllen'}],
+ steps:['Minze und Limettensaft im Glas sanft muddlen.','Crushed Ice hinzugeben.','Rum und Sirup hinzufügen.','Mit Soda auffüllen, leicht umrühren.'],
+ glass:'Highball-Glas',garnish:'Minzzweig, Limettenscheibe'},
+
+{id:'daiquiri',name:'Daiquiri',base:'Rum',alcoholFree:false,occasion:['Sommer','Party'],
+ profile:{sweetness:35,acidity:75,bitterness:5,alcoholStrength:60,fruitiness:55,herbSpice:10},
+ description:'Puristisch und brillant — drei Zutaten, perfekt ausbalanciert. Hemingways Lieblingsdrink.',
+ ingredients:[{name:'Weißer Rum',amount:'6 cl'},{name:'Limettensaft',amount:'2.5 cl'},{name:'Zuckersirup',amount:'1.5 cl'}],
+ steps:['Alle Zutaten mit Eis in den Shaker geben.','Kräftig 15 Sekunden shaken.','Doppelt in eine gekühlte Cocktailschale abseihen.'],
+ glass:'Cocktailschale',garnish:'Limettenzeste'},
+
+{id:'pina-colada',name:'Piña Colada',base:'Rum',alcoholFree:false,occasion:['Sommer','Party'],
+ profile:{sweetness:80,acidity:20,bitterness:0,alcoholStrength:35,fruitiness:90,herbSpice:5},
+ description:'Tropischer Urlaubsdrink aus Puerto Rico — cremige Kokosnuss und süße Ananas.',
+ ingredients:[{name:'Weißer Rum',amount:'4.5 cl'},{name:'Kokosnusscreme',amount:'3 cl'},{name:'Ananassaft',amount:'9 cl'}],
+ steps:['Alle Zutaten mit zerstoßenem Eis in den Mixer geben.','Cremig mixen.','In ein Glas gießen.'],
+ glass:'Hurricane-Glas',garnish:'Ananasstück, Schirmchen'},
+
+{id:'mai-tai',name:'Mai Tai',base:'Rum',alcoholFree:false,occasion:['Party','Sommer'],
+ profile:{sweetness:65,acidity:45,bitterness:15,alcoholStrength:55,fruitiness:75,herbSpice:30},
+ description:'König der Tiki-Drinks — Doppelrum, Orgeat und frischer Limettensaft. Vielschichtig und festlich.',
+ ingredients:[{name:'Dunkler Rum',amount:'3 cl'},{name:'Weißer Rum',amount:'3 cl'},{name:'Orange Curaçao',amount:'1.5 cl'},{name:'Orgeat',amount:'1.5 cl'},{name:'Limettensaft',amount:'3 cl'}],
+ steps:['Alles außer dunklem Rum mit crushed Ice shaken.','In ein Tiki-Glas mit crushed Ice geben.','Dunklen Rum als Float obenauf geben.'],
+ glass:'Tiki-Glas',garnish:'Minzzweig, Limette'},
+
+{id:'dark-stormy',name:'Dark & Stormy',base:'Rum',alcoholFree:false,occasion:['Party','Sommer'],
+ profile:{sweetness:50,acidity:35,bitterness:20,alcoholStrength:45,fruitiness:30,herbSpice:75},
+ description:'Bermudas Nationalgetränk — dunkler Rum mit scharfem Ingwerbier. Unverkennbar belebend.',
+ ingredients:[{name:'Dunkler Rum',amount:'6 cl'},{name:'Ginger Beer',amount:'12 cl'},{name:'Limettensaft',amount:'1 cl'}],
+ steps:['Ginger Beer in ein Highball-Glas mit Eis geben.','Rum vorsichtig als Float obenauf gießen.'],
+ glass:'Highball-Glas',garnish:'Limettenscheibe'},
+
+/* ── VODKA ── */
+{id:'moscow-mule',name:'Moscow Mule',base:'Vodka',alcoholFree:false,occasion:['Sommer','Party'],
+ profile:{sweetness:35,acidity:45,bitterness:15,alcoholStrength:35,fruitiness:30,herbSpice:70},
+ description:'Seit den 1940ern: Vodka und feuriges Ingwerbier, serviert im legendären Kupferkrug.',
+ ingredients:[{name:'Vodka',amount:'4.5 cl'},{name:'Ginger Beer',amount:'12 cl'},{name:'Limettensaft',amount:'1.5 cl'}],
+ steps:['Kupferkrug mit crushed Ice füllen.','Vodka und Limettensaft hinzugeben.','Mit Ginger Beer auffüllen, sanft umrühren.'],
+ glass:'Kupferkrug',garnish:'Limettenscheibe, Minzzweig'},
+
+{id:'cosmopolitan',name:'Cosmopolitan',base:'Vodka',alcoholFree:false,occasion:['Party'],
+ profile:{sweetness:55,acidity:60,bitterness:10,alcoholStrength:50,fruitiness:70,herbSpice:10},
+ description:'Knallpink, fruchtig-herb mit Cranberry und einem Hauch Orange. Für glamouröse Abende.',
+ ingredients:[{name:'Citrus-Vodka',amount:'4.5 cl'},{name:'Cointreau',amount:'2 cl'},{name:'Cranberrysaft',amount:'3 cl'},{name:'Limettensaft',amount:'1.5 cl'}],
+ steps:['Alle Zutaten mit Eis shaken.','In eine gekühlte Cocktailschale abseihen.'],
+ glass:'Cocktailschale',garnish:'Orangenzeste'},
+
+{id:'espresso-martini',name:'Espresso Martini',base:'Vodka',alcoholFree:false,occasion:['Digestif','Party'],
+ profile:{sweetness:45,acidity:15,bitterness:75,alcoholStrength:65,fruitiness:5,herbSpice:10},
+ description:'Das Meisterwerk des Digestifs — Espresso in Glasform. Belebt und entspannt zugleich.',
+ ingredients:[{name:'Vodka',amount:'5 cl'},{name:'Espresso',amount:'3 cl'},{name:'Kaffeelikör',amount:'2 cl'},{name:'Zuckersirup',amount:'0.5 cl'}],
+ steps:['Alle Zutaten in den Shaker geben.','Sehr kräftig mit viel Eis schütteln.','Doppelt in eine gekühlte Cocktailschale abseihen.'],
+ glass:'Cocktailschale',garnish:'Drei Kaffeebohnen'},
+
+{id:'white-russian',name:'White Russian',base:'Vodka',alcoholFree:false,occasion:['Digestif','Party'],
+ profile:{sweetness:70,acidity:5,bitterness:30,alcoholStrength:55,fruitiness:5,herbSpice:5},
+ description:'Vodka, Kaffeelikör und Sahne — cremig, süß und kaffeebitter zugleich.',
+ ingredients:[{name:'Vodka',amount:'5 cl'},{name:'Kaffeelikör',amount:'3 cl'},{name:'Sahne',amount:'3 cl'}],
+ steps:['Vodka und Kaffeelikör in ein Glas mit großen Eiswürfeln geben.','Sahne vorsichtig als Float obenauf gießen.'],
+ glass:'Rocks-Glas',garnish:'Kaffeebohnen optional'},
+
+/* ── WHISKY ── */
+{id:'old-fashioned',name:'Old Fashioned',base:'Whisky',alcoholFree:false,occasion:['Digestif'],
+ profile:{sweetness:30,acidity:10,bitterness:50,alcoholStrength:85,fruitiness:10,herbSpice:45},
+ description:'Der Urvater aller Cocktails — seit 1806 unverändert. Bourbon, ein Hauch Zucker, Bitters.',
+ ingredients:[{name:'Bourbon Whiskey',amount:'6 cl'},{name:'Zuckersirup',amount:'1 cl'},{name:'Angostura Bitters',amount:'2 Dashes'},{name:'Orange Bitters',amount:'1 Dash'}],
+ steps:['Zucker und Bitters in ein Rührglas geben.','Whiskey und viel Eis hinzugeben.','Etwa 30 Sekunden rühren.','Über einen großen Eiswürfel abseihen.'],
+ glass:'Rocks-Glas',garnish:'Orangenzeste'},
+
+{id:'manhattan',name:'Manhattan',base:'Whisky',alcoholFree:false,occasion:['Digestif'],
+ profile:{sweetness:40,acidity:10,bitterness:40,alcoholStrength:80,fruitiness:10,herbSpice:60},
+ description:'New Yorks stärkster Beitrag zur Cocktailkultur — Whiskey und Wermut, majestätisch elegant.',
+ ingredients:[{name:'Rye Whiskey',amount:'6 cl'},{name:'Süßer Wermut',amount:'3 cl'},{name:'Angostura Bitters',amount:'2 Dashes'}],
+ steps:['Alle Zutaten mit Eis in ein Rührglas geben.','30 Sekunden rühren.','In eine Cocktailschale abseihen.'],
+ glass:'Cocktailschale',garnish:'Cocktailkirsche'},
+
+{id:'whisky-sour',name:'Whisky Sour',base:'Whisky',alcoholFree:false,occasion:['Party','Aperitif'],
+ profile:{sweetness:45,acidity:70,bitterness:20,alcoholStrength:60,fruitiness:40,herbSpice:20},
+ description:'Ausgewogen und zugänglich — Bourbon-Wärme trifft auf spritzige Zitronensäure.',
+ ingredients:[{name:'Bourbon Whiskey',amount:'5 cl'},{name:'Zitronensaft',amount:'2.5 cl'},{name:'Zuckersirup',amount:'2 cl'},{name:'Eiweiß',amount:'1 Stück (optional)'}],
+ steps:['Dry Shake ohne Eis.','Eis hinzugeben und erneut shaken.','In ein Rocks-Glas abseihen.'],
+ glass:'Rocks-Glas',garnish:'Zitronenscheibe, Angostura-Tupfer'},
+
+{id:'penicillin',name:'Penicillin',base:'Whisky',alcoholFree:false,occasion:['Digestif'],
+ profile:{sweetness:35,acidity:55,bitterness:30,alcoholStrength:65,fruitiness:30,herbSpice:80},
+ description:'Moderner Klassiker aus NYC — Scotch mit Honig-Ingwer und rauchigem Islay-Float.',
+ ingredients:[{name:'Blended Scotch',amount:'4.5 cl'},{name:'Islay Single Malt',amount:'1.5 cl'},{name:'Zitronensaft',amount:'2.25 cl'},{name:'Honig-Ingwer-Sirup',amount:'2.25 cl'}],
+ steps:['Blended Scotch, Zitronensaft und Sirup shaken.','In ein eisgefülltes Rocks-Glas abseihen.','Islay-Malt als Float obenauf geben.'],
+ glass:'Rocks-Glas',garnish:'Kandierter Ingwer'},
+
+{id:'amaretto-sour',name:'Amaretto Sour',base:'Whisky',alcoholFree:false,occasion:['Party','Digestif'],
+ profile:{sweetness:65,acidity:60,bitterness:20,alcoholStrength:40,fruitiness:45,herbSpice:15},
+ description:'Süß, sauer, samtweich — Amaretto und Bourbon ergeben einen Sour, der süchtig macht.',
+ ingredients:[{name:'Amaretto',amount:'4.5 cl'},{name:'Bourbon',amount:'1.5 cl'},{name:'Zitronensaft',amount:'2.5 cl'},{name:'Eiweiß',amount:'1 Stück'}],
+ steps:['Dry Shake aller Zutaten ohne Eis.','Eis hinzugeben und erneut shaken.','In ein Rocks-Glas abseihen.'],
+ glass:'Rocks-Glas',garnish:'Zitronenzeste'},
+
+/* ── BRANDY / COGNAC ── */
+{id:'sidecar',name:'Sidecar',base:'Brandy',alcoholFree:false,occasion:['Digestif','Party'],
+ profile:{sweetness:45,acidity:65,bitterness:10,alcoholStrength:65,fruitiness:50,herbSpice:10},
+ description:'Zwischen den Kriegen in Paris geboren — Cognac, Cointreau und Zitrone. Aristokratisch, zeitlos.',
+ ingredients:[{name:'Cognac',amount:'5 cl'},{name:'Cointreau',amount:'2 cl'},{name:'Zitronensaft',amount:'2 cl'}],
+ steps:['Glasrand optional in Zucker tauchen.','Alle Zutaten mit Eis shaken.','In eine gekühlte Cocktailschale abseihen.'],
+ glass:'Cocktailschale',garnish:'Zuckerrand, Zitronenzeste'},
+
+/* ── SEKT / WEIN ── */
+{id:'aperol-spritz',name:'Aperol Spritz',base:'Sekt/Wein',alcoholFree:false,occasion:['Aperitif','Sommer'],
+ profile:{sweetness:50,acidity:35,bitterness:50,alcoholStrength:20,fruitiness:45,herbSpice:20},
+ description:'Italiens erfolgreichster Aperitivo — leicht bitter, leicht süß, prickelnd. Für sonnige Terrassen.',
+ ingredients:[{name:'Prosecco',amount:'9 cl'},{name:'Aperol',amount:'6 cl'},{name:'Sodawasser',amount:'3 cl'}],
+ steps:['Großes Weinglas mit Eiswürfeln füllen.','Prosecco und Aperol hinzugeben.','Einen Spritzer Soda zugeben, kurz umrühren.'],
+ glass:'Großes Weinglas',garnish:'Orangenscheibe'},
+
+{id:'hugo',name:'Hugo Spritz',base:'Sekt/Wein',alcoholFree:false,occasion:['Aperitif','Sommer'],
+ profile:{sweetness:60,acidity:30,bitterness:10,alcoholStrength:18,fruitiness:50,herbSpice:55},
+ description:'Aus Südtirol — Holunderblütensirup, Minze und Prosecco. Blumig, leicht, verführerisch.',
+ ingredients:[{name:'Prosecco',amount:'10 cl'},{name:'Holunderblütensirup',amount:'3 cl'},{name:'Sodawasser',amount:'3 cl'},{name:'Minzblätter',amount:'4–5 Blätter'}],
+ steps:['Glas mit Eis füllen, Minze hinzugeben.','Sirup und Soda einfüllen.','Prosecco aufgießen, kurz umrühren.'],
+ glass:'Großes Weinglas',garnish:'Limettenscheibe, Minzzweig'},
+
+/* ── MULTI-SPIRIT ── */
+{id:'long-island',name:'Long Island Iced Tea',base:'Vodka',alcoholFree:false,occasion:['Party'],
+ profile:{sweetness:35,acidity:40,bitterness:20,alcoholStrength:90,fruitiness:25,herbSpice:15},
+ description:'Vier weiße Spirituosen, kaum merklich unter Cola versteckt. Erschreckend trinkbar.',
+ ingredients:[{name:'Vodka',amount:'1.5 cl'},{name:'Weißer Rum',amount:'1.5 cl'},{name:'Tequila',amount:'1.5 cl'},{name:'Gin',amount:'1.5 cl'},{name:'Triple Sec',amount:'1.5 cl'},{name:'Zitronensaft',amount:'3 cl'},{name:'Zuckersirup',amount:'2 cl'},{name:'Cola',amount:'zum Auffüllen'}],
+ steps:['Alle Spirituosen, Zitronensaft und Sirup shaken.','In ein eisgefülltes Highball-Glas abseihen.','Mit Cola auffüllen.'],
+ glass:'Highball-Glas',garnish:'Zitronenscheibe'},
+
+/* ── ALKOHOLFREI ── */
+{id:'virgin-mojito',name:'Virgin Mojito',base:'Alkoholfrei',alcoholFree:true,occasion:['Sommer','Party'],
+ profile:{sweetness:55,acidity:65,bitterness:5,alcoholStrength:0,fruitiness:40,herbSpice:70},
+ description:'Alle Frische des Mojito, null Prozent Alkohol. Ein vollwertiges Genusserlebnis.',
+ ingredients:[{name:'Limettensaft',amount:'3 cl'},{name:'Zuckersirup',amount:'2 cl'},{name:'Minzblätter',amount:'8–10 Blätter'},{name:'Sodawasser',amount:'zum Auffüllen'}],
+ steps:['Minze und Limettensaft im Glas muddlen.','Crushed Ice hinzugeben.','Sirup hinzufügen, mit Soda auffüllen.'],
+ glass:'Highball-Glas',garnish:'Minzzweig, Limettenscheibe'},
+
+{id:'shirley-temple',name:'Shirley Temple',base:'Alkoholfrei',alcoholFree:true,occasion:['Party','Sommer'],
+ profile:{sweetness:80,acidity:30,bitterness:5,alcoholStrength:0,fruitiness:75,herbSpice:5},
+ description:'Grenadine, Orangensaft und Ginger Ale — leuchtend rot, festlich, für alle.',
+ ingredients:[{name:'Ginger Ale',amount:'12 cl'},{name:'Orangensaft',amount:'4 cl'},{name:'Grenadine',amount:'2 cl'}],
+ steps:['Glas mit Eis füllen.','Orangensaft und Grenadine hinzugeben.','Mit Ginger Ale aufgießen.'],
+ glass:'Highball-Glas',garnish:'Cocktailkirsche, Orangenscheibe'},
+
+{id:'watermelon-cooler',name:'Watermelon Cooler',base:'Alkoholfrei',alcoholFree:true,occasion:['Sommer'],
+ profile:{sweetness:65,acidity:55,bitterness:5,alcoholStrength:0,fruitiness:90,herbSpice:15},
+ description:'Frischer Wassermelonensaft mit Limette und Minze — perfekt für heiße Sommertage.',
+ ingredients:[{name:'Wassermelonensaft',amount:'15 cl'},{name:'Limettensaft',amount:'2 cl'},{name:'Minzblätter',amount:'5–6 Blätter'},{name:'Zuckersirup',amount:'1 cl'},{name:'Sodawasser',amount:'3 cl'}],
+ steps:['Minze im Glas leicht andrücken.','Eis, Wassermelonensaft, Limettensaft und Sirup hinzugeben.','Mit Soda aufgießen.'],
+ glass:'Highball-Glas',garnish:'Wassermelonenspalte, Minzzweig'},
+
+{id:'lemon-ginger-sparkler',name:'Lemon Ginger Sparkler',base:'Alkoholfrei',alcoholFree:true,occasion:['Aperitif','Sommer'],
+ profile:{sweetness:45,acidity:70,bitterness:15,alcoholStrength:0,fruitiness:40,herbSpice:75},
+ description:'Ingwersirup mit frischer Zitrone und Mineralwasser — wach, belebend, intensiv.',
+ ingredients:[{name:'Zitronensaft',amount:'4 cl'},{name:'Ingwersirup',amount:'3 cl'},{name:'Mineralwasser',amount:'zum Auffüllen'}],
+ steps:['Zitronensaft und Ingwersirup in ein eisgefülltes Glas geben.','Mit Mineralwasser auffüllen.'],
+ glass:'Highball-Glas',garnish:'Zitronenscheibe, frischer Ingwer'},
+
+{id:'cucumber-cooler',name:'Cucumber Cooler',base:'Alkoholfrei',alcoholFree:true,occasion:['Sommer','Aperitif'],
+ profile:{sweetness:35,acidity:45,bitterness:10,alcoholStrength:0,fruitiness:25,herbSpice:60},
+ description:'Frische Gurke mit Limette und Holunderblüte — kühl, grün, meditativ.',
+ ingredients:[{name:'Gurkensaft',amount:'8 cl'},{name:'Limettensaft',amount:'2 cl'},{name:'Holunderblütensirup',amount:'2 cl'},{name:'Tonic Water',amount:'zum Auffüllen'}],
+ steps:['Gurkensaft, Limettensaft und Sirup in ein eisgefülltes Glas geben.','Mit Tonic Water auffüllen.'],
+ glass:'Highball-Glas',garnish:'Gurkenscheibe, Minzzweig'},
+];
+
+/* ================================================================
+   COCKTAIL-AKZENTFARBEN
+   Eine charakteristische Farbe pro Drink. Wird sanft über das
+   Creme-Papier gelegt (Wash/Hero) und als Akzent verwendet.
+================================================================ */
+const ACCENTS={
+  margarita:'#7BA428',paloma:'#E0567E','tequila-sunrise':'#E8702A','spicy-margarita':'#D94E2B',
+  'el-diablo':'#9B4DA8','mezcal-negroni':'#C0573C','gin-tonic':'#2E9E86',negroni:'#C8312E',
+  'tom-collins':'#9AA52E','french-75':'#D4B24A','bees-knees':'#E0A12E',bramble:'#8E44AD',
+  aviation:'#6A6AD0',mojito:'#3FA85A',daiquiri:'#2FA37C','pina-colada':'#C9B23E',
+  'mai-tai':'#E07B2A','dark-stormy':'#4A6076','moscow-mule':'#8FA63E',cosmopolitan:'#D63A78',
+  'espresso-martini':'#7A5238','white-russian':'#A98B6E','old-fashioned':'#C07A2E',manhattan:'#B23A2E',
+  'whisky-sour':'#D9A22E',penicillin:'#C68A36','amaretto-sour':'#D98A3E',sidecar:'#C8843A',
+  'aperol-spritz':'#E8662A',hugo:'#5FA85F','long-island':'#9A6A3E','virgin-mojito':'#3FB060',
+  'shirley-temple':'#D6304E','watermelon-cooler':'#E24A60','lemon-ginger-sparkler':'#D9B82E','cucumber-cooler':'#5FA876',
+  _default:'#CC785C',
+};
+const accentOf=id=>ACCENTS[id]||ACCENTS._default;
+
+/* Farb-Helfer: hex über Creme legen (amount = Anteil der Akzentfarbe) */
+const CREAM=[240,238,230];
+function hexToRgb(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function mixOverCream(hex,amount){const a=hexToRgb(hex);
+  return'#'+a.map((c,i)=>Math.round(c*amount+CREAM[i]*(1-amount)).toString(16).padStart(2,'0')).join('');}
+
+/* ================================================================
+   KONFIGURATION
+================================================================ */
+const SLIDERS=[
+  {key:'sweetness',      label:'Süße',            left:'herb',    right:'süß'},
+  {key:'acidity',        label:'Säure & Frische', left:'mild',    right:'spritzig'},
+  {key:'bitterness',     label:'Bitterkeit',      left:'keine',   right:'stark'},
+  {key:'alcoholStrength',label:'Alkoholstärke',   left:'leicht',  right:'stark'},
+  {key:'fruitiness',     label:'Fruchtigkeit',    left:'neutral', right:'fruchtig'},
+  {key:'herbSpice',      label:'Würze & Kräuter', left:'clean',   right:'würzig'},
+];
+const HEX_LABELS=['Süße','Säure','Bitter','Alkohol','Frucht','Würze'];
+const SPIRITS=['Gin','Rum','Vodka','Tequila','Whisky','Brandy','Sekt/Wein','Alkoholfrei'];
+const OCCASIONS=['Aperitif','Digestif','Sommer','Party'];
+
+/* ================================================================
+   STATE — über alle Seiten konsistent (kein localStorage)
+================================================================ */
+const S={
+  sliders:{sweetness:5,acidity:5,bitterness:5,alcoholStrength:5,fruitiness:5,herbSpice:5},
+  activeSpirits:[],activeOccasions:[],nonAlcoholic:false,
+  pantryEnabled:false,pantry:new Set(),
+  selected:null,tab:'ingredients',results:[],
+  dbSpirit:'',currentPage:'matcher',
+};
+
+/* ================================================================
+   MATCHING — Slider 1–10 → 0–100, gewichteter Euklid-Abstand
+================================================================ */
+const WEIGHTS={sweetness:1.2,acidity:1.1,bitterness:1.1,alcoholStrength:1.0,fruitiness:1.0,herbSpice:0.9};
+const MAX_DIST=Math.sqrt(Object.values(WEIGHTS).reduce((s,w)=>s+(100*w)**2,0));
+const s2p=v=>(v-1)/9*100;
+function matchScore(user,c){let sq=0;for(const k in WEIGHTS){const d=(s2p(user[k])-c.profile[k])*WEIGHTS[k];sq+=d*d;}return Math.round((1-Math.sqrt(sq)/MAX_DIST)*100);}
+function computeResults(){
+  let pool=DB;
+  if(S.nonAlcoholic)          pool=pool.filter(c=>c.alcoholFree);
+  if(S.activeSpirits.length)  pool=pool.filter(c=>S.activeSpirits.includes(c.base));
+  if(S.activeOccasions.length)pool=pool.filter(c=>c.occasion.some(o=>S.activeOccasions.includes(o)));
+  if(S.pantryEnabled&&S.pantry.size)pool=pool.filter(c=>c.ingredients.every(i=>S.pantry.has(i.name)));
+  return pool.map(c=>({...c,match:matchScore(S.sliders,c)})).sort((a,b)=>b.match-a.match);
+}
+
+/* Pantry-Hilfen */
+const ALL_INGREDIENTS=[...new Set(DB.flatMap(c=>c.ingredients.map(i=>i.name)))].sort((a,b)=>a.localeCompare(b,'de'));
+const coverage=c=>({missing:c.ingredients.filter(i=>!S.pantry.has(i.name)).map(i=>i.name)});
+const pantryMakeable=()=>DB.map(c=>({...c,cov:coverage(c)})).filter(c=>c.cov.missing.length<=1)
+  .sort((a,b)=>a.cov.missing.length-b.cov.missing.length||a.name.localeCompare(b.name));
+
+/* ================================================================
+   AKZENT ANWENDEN — setzt CSS-Variablen (weicher Farbübergang)
+================================================================ */
+let curAccentId=null;
+function applyAccent(id){
+  if(id===curAccentId)return;curAccentId=id;
+  const a=accentOf(id),r=document.documentElement.style;
+  r.setProperty('--accent',a);
+  r.setProperty('--wash',mixOverCream(a,0.05));
+  r.setProperty('--hero',mixOverCream(a,0.16));
+  r.setProperty('--hero-line',mixOverCream(a,0.34));
+}
+
+/* ================================================================
+   HEXAGON — Geometrie & live morphende Pfade
+================================================================ */
+const HX=150,HY=132,HR=84,HLR=112;
+const hexAngle=i=>-Math.PI/2+i*Math.PI/3;
+function hexPath(vals,kind){
+  const norm=v=>kind==='user'?(v-1)/9:v/100;let d='';
+  for(let i=0;i<6;i++){const a=hexAngle(i),f=Math.max(0,Math.min(1,norm(vals[i])));
+    d+=(i?'L':'M')+(HX+HR*f*Math.cos(a)).toFixed(1)+' '+(HY+HR*f*Math.sin(a)).toFixed(1)+' ';}
+  return d+'Z';
+}
+function hexStaticParts(){
+  let grid='';[.25,.5,.75,1].forEach(f=>{let p='';for(let i=0;i<6;i++){const a=hexAngle(i);p+=(HX+HR*f*Math.cos(a)).toFixed(1)+','+(HY+HR*f*Math.sin(a)).toFixed(1)+' ';}grid+=`<polygon class="hex-grid" points="${p.trim()}"/>`;});
+  let axes='';for(let i=0;i<6;i++){const a=hexAngle(i);axes+=`<line class="hex-axis" x1="${HX}" y1="${HY}" x2="${(HX+HR*Math.cos(a)).toFixed(1)}" y2="${(HY+HR*Math.sin(a)).toFixed(1)}"/>`;}
+  const anc=['middle','start','start','middle','end','end'],dys=[-6,4,4,15,4,4];
+  let labels='';for(let i=0;i<6;i++){const a=hexAngle(i);labels+=`<text class="hex-label" x="${(HX+HLR*Math.cos(a)).toFixed(1)}" y="${(HY+HLR*Math.sin(a)).toFixed(1)}" dy="${dys[i]}" text-anchor="${anc[i]}">${HEX_LABELS[i]}</text>`;}
+  return{grid,axes,labels};
+}
+const HEX_LEGEND=`<div class="hex-legend"><span><span class="hex-key"></span>Dein Profil</span><span><span class="hex-key dash"></span>Cocktail</span></div>`;
+function hexInit(){const{grid,axes,labels}=hexStaticParts();
+  document.getElementById('hexContainer').innerHTML=
+    `<svg viewBox="0 0 300 256">${grid}${axes}<path id="hexCocktail" class="hex-poly hex-cocktail" d=""/><path id="hexUser" class="hex-poly hex-user" d=""/>${labels}</svg>${HEX_LEGEND}`;}
+function hexUpdate(u,c){document.getElementById('hexUser').setAttribute('d',hexPath(u,'user'));
+  document.getElementById('hexCocktail').setAttribute('d',c?hexPath(c,'cocktail'):'');}
+function hexStatic(u,c){const{grid,axes,labels}=hexStaticParts();
+  return`<svg viewBox="0 0 300 256">${grid}${axes}<path class="hex-poly hex-cocktail" d="${hexPath(c,'cocktail')}"/><path class="hex-poly hex-user" d="${hexPath(u,'user')}"/>${labels}</svg>${HEX_LEGEND}`;}
+
+/* ================================================================
+   RENDER — Steuerung
+================================================================ */
+function renderSliders(){
+  document.getElementById('sliderContainer').innerHTML=SLIDERS.map(s=>{
+    const v=S.sliders[s.key],pct=((v-1)/9*100).toFixed(1)+'%';
+    return`<div class="slider-row">
+      <div class="slider-top"><span class="slider-lbl">${s.label}</span><span class="slider-val" id="sv-${s.key}">${v}</span></div>
+      <input type="range" min="1" max="10" step="1" value="${v}" style="--val:${pct}" data-key="${s.key}" oninput="onSlider(this)"/>
+    </div>`;
+  }).join('');
+}
+function renderFilters(){
+  const n=S.pantry.size;
+  document.getElementById('pantryMini').textContent=n?`${n} Zutaten gewählt`:'Pantry leer';
+}
+
+/* ================================================================
+   RENDER — Ergebnis (Skelett einmal, dann gezielt patchen)
+================================================================ */
+let skeleton=false,lastTopId=null,lastTabKey='',lastAltOrder='';
+const chipsHTML=c=>`<span class="chip">${c.base}</span>${c.occasion.map(o=>`<span class="chip">${o}</span>`).join('')}${c.alcoholFree?'<span class="chip">Alkoholfrei</span>':''}`;
+
+function buildSkeleton(){
+  document.getElementById('resultsArea').innerHTML=`
+    <div class="hero">
+      <div class="result-meta" id="resultMeta"></div>
+      <div class="top-block" id="topBlock">
+        <div class="top-row">
+          <h2 class="top-name" id="topName"></h2>
+          <div class="match-block">
+            <div class="match-num"><span id="matchNum">0</span><span class="match-unit">%</span></div>
+            <div class="match-cap">Match</div>
+            <div class="match-bar"><div class="match-fill" id="matchFill"></div></div>
+          </div>
+        </div>
+        <div class="top-chips" id="topChips"></div>
+        <div class="top-desc" id="topDesc"></div>
+      </div>
+      <div class="tabs">
+        <button class="tab active" id="tabIng" onclick="switchTab('ingredients')">Zutaten</button>
+        <button class="tab" id="tabStp" onclick="switchTab('steps')">Zubereitung</button>
+      </div>
+      <div class="tab-content" id="tabContent"></div>
+    </div>
+    <div class="alts-wrap">
+      <div class="alts-head">Weitere Empfehlungen</div>
+      <div class="alts" id="altsList"></div>
+    </div>`;
+  skeleton=true;lastTopId=null;lastTabKey='';lastAltOrder='';
+}
+function ingredientsHTML(c){
+  return`<ul class="ing-list">${c.ingredients.map(i=>`<li class="ing-row"><span class="ing-name">${i.name}</span><span class="ing-amt">${i.amount}</span></li>`).join('')}</ul>
+    <div class="gg-row"><div><div class="gg-lbl">Glas</div><div class="gg-val">${c.glass}</div></div><div><div class="gg-lbl">Garnitur</div><div class="gg-val">${c.garnish}</div></div></div>`;
+}
+const stepsHTML=c=>`<ol class="steps">${c.steps.map(s=>`<li class="step"><span class="step-n"></span><span class="step-t">${s}</span></li>`).join('')}</ol>`;
+function setTabContent(c,animate){
+  const el=document.getElementById('tabContent');
+  const html=S.tab==='ingredients'?ingredientsHTML(c):stepsHTML(c);
+  if(!animate){el.innerHTML=html;return;}
+  el.classList.add('fade');
+  setTimeout(()=>{el.innerHTML=html;el.classList.remove('fade');},190);
+}
+function renderResults(){
+  const area=document.getElementById('resultsArea'),res=S.results;
+  if(!res.length){skeleton=false;area.innerHTML=`<div class="empty"><div class="e-t">Keine Treffer</div><div>Passe deine Regler oder Filter an.</div></div>`;return;}
+  if(!skeleton)buildSkeleton();
+  const top=res.find(c=>c.id===S.selected)||res[0];
+  const alts=res.filter(c=>c.id!==top.id).slice(0,5);
+  applyAccent(top.id);
+  document.getElementById('resultMeta').textContent=`Bester Treffer · ${res.length} von ${DB.length} Cocktails`;
+
+  if(top.id!==lastTopId){
+    document.getElementById('topName').textContent=top.name;
+    document.getElementById('topChips').innerHTML=chipsHTML(top);
+    document.getElementById('topDesc').textContent=top.description;
+    const tb=document.getElementById('topBlock');tb.classList.remove('swap');void tb.offsetWidth;tb.classList.add('swap');
+    lastTopId=top.id;
+  }
+  const tabKey=top.id+'/'+S.tab;
+  if(tabKey!==lastTabKey){setTabContent(top,true);lastTabKey=tabKey;}
+  document.getElementById('matchNum').textContent=top.match;
+  document.getElementById('matchFill').style.width=top.match+'%';
+
+  const order=alts.map(a=>a.id).join('|'),list=document.getElementById('altsList');
+  if(order!==lastAltOrder){
+    list.innerHTML=alts.map(c=>`
+      <div class="alt" data-id="${c.id}" onclick="selectCocktail('${c.id}')">
+        <span class="alt-sw" style="--c:${accentOf(c.id)}"></span>
+        <div class="alt-info"><div class="alt-name">${c.name}</div><div class="alt-sub">${c.base} · ${c.occasion.join(', ')}</div></div>
+        <div class="alt-right"><div class="alt-pct"><span class="apct">${c.match}</span>%</div><div class="alt-mini"><div class="alt-mini-fill" style="--c:${accentOf(c.id)};width:${c.match}%"></div></div></div>
+      </div>`).join('');
+    lastAltOrder=order;
+  }else{
+    alts.forEach(c=>{const row=list.querySelector(`.alt[data-id="${c.id}"]`);if(row){row.querySelector('.apct').textContent=c.match;row.querySelector('.alt-mini-fill').style.width=c.match+'%';}});
+  }
+  hexUpdate(SLIDERS.map(s=>S.sliders[s.key]),SLIDERS.map(s=>top.profile[s.key]));
+}
+
+/* ================================================================
+   RENDER — Database (Kartenraster)
+================================================================ */
+function renderDatabase(){
+  const q=(document.getElementById('dbSearch').value||'').toLowerCase().trim();
+  document.getElementById('dbSpiritFilters').innerHTML=
+    ['Alle',...SPIRITS].map(s=>{const on=(s==='Alle'&&!S.dbSpirit)||S.dbSpirit===s;return`<span class="tag${on?' active':''}" onclick="setDbSpirit('${s==='Alle'?'':s}')">${s}</span>`;}).join('');
+  const list=DB.filter(c=>{
+    if(S.dbSpirit&&c.base!==S.dbSpirit)return false;
+    if(q&&!c.name.toLowerCase().includes(q)&&!c.description.toLowerCase().includes(q))return false;
+    return true;});
+  const el=document.getElementById('dbGrid');
+  if(!list.length){el.innerHTML=`<div class="db-empty">Keine Cocktails gefunden.</div>`;return;}
+  el.innerHTML=list.map(c=>`
+    <div class="db-card" style="--c:${accentOf(c.id)}" onclick="openOverlay('${c.id}')">
+      <div class="eyebrow">${c.base}</div>
+      <div class="name">${c.name}</div>
+      <div class="meta">${c.occasion.map(o=>`<span class="chip">${o}</span>`).join('')}${c.alcoholFree?'<span class="chip">Alkoholfrei</span>':''}</div>
+      <div class="desc">${c.description}</div>
+    </div>`).join('');
+}
+
+/* ================================================================
+   RENDER — Pantry
+================================================================ */
+function renderPantryIngredients(){
+  const q=(document.getElementById('pantrySearch').value||'').toLowerCase().trim();
+  const list=ALL_INGREDIENTS.filter(i=>!q||i.toLowerCase().includes(q));
+  document.getElementById('ingPickList').innerHTML=list.map(i=>
+    `<label class="ing-pick"><input type="checkbox" ${S.pantry.has(i)?'checked':''} onchange="toggleIngredient(this,'${i.replace(/'/g,"\\'")}')"/><span>${i}</span></label>`).join('');
+}
+function renderPantryResults(){
+  const all=pantryMakeable(),full=all.filter(c=>!c.cov.missing.length),near=all.filter(c=>c.cov.missing.length===1);
+  document.getElementById('pantryCount').textContent=`${S.pantry.size} Zutaten · ${full.length} machbar`;
+  const out=document.getElementById('pantryResults');
+  if(!S.pantry.size){out.innerHTML=`<div class="pantry-hint">Wähle links Zutaten aus, um machbare Cocktails zu sehen.</div>`;return;}
+  let h='';
+  if(full.length)h+=`<div class="make-divider">Vollständig machbar · ${full.length}</div>`+full.map(c=>`<div class="make-row" onclick="openOverlay('${c.id}')"><div><div class="make-name">${c.name}</div><div class="make-sub">${c.base}</div></div></div>`).join('');
+  if(near.length)h+=`<div class="make-divider">Es fehlt nur eine Zutat · ${near.length}</div>`+near.map(c=>`<div class="make-row" onclick="openOverlay('${c.id}')"><div><div class="make-name">${c.name}</div><div class="make-sub">${c.base}</div></div><div class="make-miss">fehlt: ${c.cov.missing[0]}</div></div>`).join('');
+  if(!full.length&&!near.length)h=`<div class="pantry-hint">Mit dieser Auswahl ist noch nichts machbar — wähle weitere Zutaten.</div>`;
+  out.innerHTML=h;
+}
+
+/* ================================================================
+   DETAIL-OVERLAY
+================================================================ */
+function openOverlay(id){
+  const c=DB.find(x=>x.id===id);if(!c)return;
+  applyAccent(c.id);                       // Overlay & Seite teilen die Cocktailfarbe
+  const u=SLIDERS.map(s=>S.sliders[s.key]),cv=SLIDERS.map(s=>c.profile[s.key]);
+  document.getElementById('overlayInner').innerHTML=`
+    <div class="eyebrow">${c.base}${c.alcoholFree?' · Alkoholfrei':''}</div>
+    <h2 class="overlay-name">${c.name}</h2>
+    <div class="top-chips">${c.occasion.map(o=>`<span class="chip">${o}</span>`).join('')}</div>
+    <p class="overlay-desc">${c.description}</p>
+    <div class="hex-wrap">${hexStatic(u,cv)}</div>
+    <div class="hr"></div>
+    <div class="label">Zutaten</div>${ingredientsHTML(c)}
+    <div class="hr"></div>
+    <div class="label">Zubereitung</div>${stepsHTML(c)}`;
+  const ov=document.getElementById('overlay');ov.classList.add('open');ov.scrollTop=0;document.body.style.overflow='hidden';
+}
+function closeOverlay(){document.getElementById('overlay').classList.remove('open');document.body.style.overflow='';}
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeOverlay();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeOverlay();});
+
+/* ================================================================
+   EVENT-HANDLER
+================================================================ */
+function onSlider(el){
+  const v=+el.value;S.sliders[el.dataset.key]=v;
+  el.style.setProperty('--val',((v-1)/9*100).toFixed(1)+'%');
+  document.getElementById('sv-'+el.dataset.key).textContent=v;
+  run();                                   // live, kein Button
+}
+function toggleIngredient(el,name){el.checked?S.pantry.add(name):S.pantry.delete(name);renderPantryResults();renderFilters();}
+function selectAllIngredients(){ALL_INGREDIENTS.forEach(i=>S.pantry.add(i));renderPantryIngredients();renderPantryResults();renderFilters();}
+function clearIngredients(){S.pantry.clear();renderPantryIngredients();renderPantryResults();renderFilters();}
+function setDbSpirit(sp){S.dbSpirit=sp;renderDatabase();}
+
+document.getElementById('nonAlcTgl').addEventListener('change',function(){
+  S.nonAlcoholic=this.checked;if(this.checked){S.activeSpirits=[];renderFilters();}run();});
+document.getElementById('pantryTgl').addEventListener('change',function(){S.pantryEnabled=this.checked;run();});
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  S.sliders={sweetness:5,acidity:5,bitterness:5,alcoholStrength:5,fruitiness:5,herbSpice:5};
+  S.activeSpirits=[];S.activeOccasions=[];S.nonAlcoholic=false;S.selected=null;
+  document.getElementById('nonAlcTgl').checked=false;
+  renderSliders();renderFilters();run();});
+
+function selectCocktail(id){
+  S.selected=id;S.tab='ingredients';
+  document.getElementById('tabIng').classList.add('active');
+  document.getElementById('tabStp').classList.remove('active');
+  run();document.getElementById('resultsArea').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function switchTab(t){
+  if(S.tab===t)return;S.tab=t;
+  document.getElementById('tabIng').classList.toggle('active',t==='ingredients');
+  document.getElementById('tabStp').classList.toggle('active',t==='steps');
+  renderResults();
+}
+
+/* ================================================================
+   NAVIGATION — weicher Seiten-Crossfade
+================================================================ */
+function goto(page){
+  if(S.currentPage===page)return;
+  const app=document.getElementById('app');app.style.opacity='0';
+  setTimeout(()=>{
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(l=>l.classList.toggle('active',l.dataset.page===page));
+    document.getElementById('page-'+page).classList.add('active');
+    S.currentPage=page;
+    if(page==='database')renderDatabase();
+    if(page==='pantry'){renderPantryIngredients();renderPantryResults();}
+    window.scrollTo({top:0});app.style.opacity='1';
+  },260);
+}
+
+/* ================================================================
+   CORE + INIT
+================================================================ */
+function run(){
+  S.results=computeResults();
+  if(S.selected&&!S.results.find(c=>c.id===S.selected))S.selected=null;
+  renderResults();
+}
+hexInit();renderSliders();renderFilters();run();
+</script>
+</body>
+</html>
